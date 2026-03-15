@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireApiKey, requireAdminKey } from "./middleware/auth.js";
 import {
   createProject, listProjects, deleteProject, updateProjectLogo,
-  getProjectByApiKey, getProjectById, updateProjectPwa,
+  getProjectByApiKey, getProjectById, updateProjectPwa, updateProjectWidgets,
   addScreenshot, deleteScreenshot, getScreenshotsForProject, getScreenshotById,
   upsertSubscription, removeSubscription, getSubscriptionsForProject,
   logNotification, getNotificationHistory,
@@ -80,6 +80,33 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
   const pwa = schema.parse(req.body);
   const project = await updateProjectPwa(req.params.id, pwa);
   res.json(project);
+});
+
+// Save widget enable/disable settings
+router.patch("/admin/projects/:id/widgets", requireAdminKey, async (req, res) => {
+  const schema = z.object({
+    bell:    z.boolean(),
+    banner:  z.boolean(),
+    install: z.boolean(),
+  });
+  const cfg = schema.parse(req.body);
+  const project = await updateProjectWidgets(req.params.id, JSON.stringify(cfg));
+  res.json(project);
+});
+
+// Public — widget config fetched by client apps
+router.get("/pwa/config", async (req, res) => {
+  const key = req.query.key as string;
+  if (!key) { res.status(400).json({ error: "key required" }); return; }
+  const project = await getProjectByApiKey(key);
+  if (!project) { res.status(404).json({ error: "project not found" }); return; }
+  const defaults = { bell: true, banner: true, install: true };
+  try {
+    const parsed = JSON.parse((project as any).widgetsConfig || "{}");
+    res.json({ ...defaults, ...parsed });
+  } catch {
+    res.json(defaults);
+  }
 });
 
 // Upload screenshot

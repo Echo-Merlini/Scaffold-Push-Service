@@ -45,6 +45,15 @@ export async function deleteProject(id: string) {
   await db.delete(projects).where(eq(projects.id, id));
 }
 
+export async function updateProjectWidgets(id: string, widgetsConfig: string) {
+  const [updated] = await db
+    .update(projects)
+    .set({ widgetsConfig })
+    .where(eq(projects.id, id))
+    .returning();
+  return updated;
+}
+
 export async function updateProjectLogo(id: string, logos: {
   logo: string | null;
   logo512?: string | null;

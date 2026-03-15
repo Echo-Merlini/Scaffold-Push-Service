@@ -16,6 +16,7 @@ export const projects = pgTable("projects", {
   pwaDisplay: text("pwa_display"),       // standalone | fullscreen | minimal-ui | browser
   pwaUrl: text("pwa_url"),              // production URL e.g. https://myapp.com
   pwaDescription: text("pwa_description"), // shown on the install page
+  widgetsConfig: text("widgets_config").default("{}"), // JSON: { bell, banner, install }
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

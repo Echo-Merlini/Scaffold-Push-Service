@@ -1278,16 +1278,17 @@ await fetch("${BASE}/notify", {
   // ── UI Components / Widgets ───────────────────────────────────
 
   var WSTATE = {};
+  var WWIDGETS = { bell: true, banner: true, install: true }; // loaded from API per project
 
   var W_DEFS = [
-    { id:'bell', title:'Bell Widget', desc:'Floating subscribe/unsubscribe button fixed to a corner of the page',
+    { id:'bell', widgetKey:'bell', title:'Bell Widget', desc:'Floating subscribe/unsubscribe button fixed to a corner of the page',
       thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><circle cx="65" cy="40" r="9" fill="#16a34a"/><path d="M65 36.5a3.5 3.5 0 0 0-3.5 3.5c0 3.5-1.5 5-1.5 5h7s-1.5-1.5-1.5-5a3.5 3.5 0 0 0-3.5-3.5z" fill="white"/><circle cx="65" cy="47" r="1" fill="white"/></svg>',
       fields:[
         {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a'},
         {key:'position', label:'Position', type:'select', opts:['bottom-right','bottom-left'], def:'bottom-right'},
       ]
     },
-    { id:'banner', title:'Subscribe Banner', desc:'Inline dismissible banner — place inside authenticated pages',
+    { id:'banner', widgetKey:'banner', title:'Subscribe Banner', desc:'Inline dismissible banner — place inside authenticated pages',
       thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><rect x="6" y="35" width="68" height="11" rx="3" fill="#0f1f15" stroke="#1a3a22"/><circle cx="15" cy="40.5" r="3.5" fill="#16a34a"/><rect x="54" y="38" width="15" height="5" rx="2" fill="#16a34a"/></svg>',
       fields:[
         {key:'heading', label:'Heading', type:'text', def:'Stay in the loop'},
@@ -1296,7 +1297,7 @@ await fetch("${BASE}/notify", {
         {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a'},
       ]
     },
-    { id:'pwa', title:'PWA Install Prompt', desc:'Polished "Add to Home Screen" card — replaces the browser default',
+    { id:'pwa', widgetKey:'install', title:'PWA Install Prompt', desc:'Polished "Add to Home Screen" card — replaces the browser default',
       thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><rect x="46" y="20" width="28" height="26" rx="4" fill="#0e0820" stroke="#7c3aed" stroke-width=".8"/><rect x="52" y="38" width="16" height="5" rx="2" fill="#7c3aed"/><rect x="50" y="24" width="20" height="3" rx="1" fill="#333"/><rect x="50" y="30" width="14" height="2" rx="1" fill="#2a2a2a"/></svg>',
       fields:[
         {key:'cardTitle', label:'Title', type:'text', def:'Install App'},
@@ -1310,8 +1311,41 @@ await fetch("${BASE}/notify", {
     },
   ];
 
-  function renderWidgets() { renderWidgetList(); }
-  function onWidgetsProjectChange() { renderWidgetList(); }
+  function renderWidgets() { loadWidgetSettings(); }
+  function onWidgetsProjectChange() { loadWidgetSettings(); }
+
+  async function loadWidgetSettings() {
+    var sel = document.getElementById('widgets-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt || !opt.dataset.key) { renderWidgetList(); return; }
+    try {
+      var res = await fetch(BASE + '/pwa/config?key=' + opt.dataset.key);
+      if (res.ok) WWIDGETS = await res.json();
+    } catch {}
+    renderWidgetList();
+  }
+
+  async function wcToggleEnabled(wid) {
+    var w = W_DEFS.find(function(d){return d.id===wid;});
+    if (!w || !w.widgetKey) return;
+
+    var sel = document.getElementById('widgets-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt) return;
+
+    WWIDGETS[w.widgetKey] = !WWIDGETS[w.widgetKey];
+
+    // Save all three widget states
+    var projectId = opt.value;
+    await fetch(BASE + '/admin/projects/' + projectId + '/widgets', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ bell: !!WWIDGETS.bell, banner: !!WWIDGETS.banner, install: !!WWIDGETS.install }),
+    });
+
+    renderWidgetList();
+    toast((WWIDGETS[w.widgetKey] ? 'Enabled: ' : 'Disabled: ') + w.title);
+  }
 
   function renderWidgetList() {
     var sel = document.getElementById('widgets-project');
@@ -1344,6 +1378,15 @@ await fetch("${BASE}/notify", {
             '<button class="btn" onclick="wcShowSnippet(\''+w.id+'\')" style="font-size:.8rem">Get Code</button>' +
           '</div>';
 
+      // Enable/disable toggle (not shown for sw)
+      var enabled = w.widgetKey ? !!WWIDGETS[w.widgetKey] : true;
+      var toggleHtml = w.widgetKey
+        ? '<button id="wtoggle-'+w.id+'" onclick="event.stopPropagation();wcToggleEnabled(\''+w.id+'\')" style="' +
+            'flex-shrink:0;border:none;border-radius:20px;padding:.25rem .65rem;font-size:.7rem;font-weight:600;cursor:pointer;transition:background .15s,color .15s;' +
+            (enabled ? 'background:#166534;color:#4ade80' : 'background:#222;color:var(--muted)') +
+          '">' + (enabled ? 'Active' : 'Inactive') + '</button>'
+        : '';
+
       return '<div class="wcard" id="wcard-'+w.id+'">' +
         '<div class="wcard-head" onclick="wcToggle(\''+w.id+'\')">' +
           '<div class="wthumb">'+w.thumb+'</div>' +
@@ -1351,7 +1394,8 @@ await fetch("${BASE}/notify", {
             '<div style="font-size:.88rem;font-weight:600;color:var(--text)">'+w.title+'</div>' +
             '<div style="font-size:.75rem;color:var(--text-dim);margin-top:.15rem">'+w.desc+'</div>' +
           '</div>' +
-          '<svg id="wchev-'+w.id+'" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--muted);transition:transform .2s'+(open?';transform:rotate(180deg)':'')+'"><polyline points="6 9 12 15 18 9"/></svg>' +
+          toggleHtml +
+          '<svg id="wchev-'+w.id+'" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--muted);transition:transform .2s;margin-left:.5rem'+(open?';transform:rotate(180deg)':'')+'"><polyline points="6 9 12 15 18 9"/></svg>' +
         '</div>' +
         '<div id="wbody-'+w.id+'" style="display:'+(open?'block':'none')+'" class="wcard-body">' +
           fieldsHtml +

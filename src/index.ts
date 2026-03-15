@@ -19,7 +19,8 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS pwa_bg_color TEXT,
       ADD COLUMN IF NOT EXISTS pwa_display TEXT,
       ADD COLUMN IF NOT EXISTS pwa_url TEXT,
-      ADD COLUMN IF NOT EXISTS pwa_description TEXT
+      ADD COLUMN IF NOT EXISTS pwa_description TEXT,
+      ADD COLUMN IF NOT EXISTS widgets_config TEXT DEFAULT '{}'
   `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS screenshots (
