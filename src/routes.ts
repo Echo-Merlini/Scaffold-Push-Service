@@ -55,7 +55,7 @@ router.post("/admin/projects/:id/logo/upload", requireAdminKey, upload.single("l
   try {
     const logos = await processLogo(req.file.buffer);
     const project = await updateProjectLogo(req.params.id, logos);
-    res.json({ ok: true, logo: project.logo, logo512: project.logo512, logoBadge: project.logoBadge });
+    res.json({ ok: true, logo: project.logo, logo512: project.logo512, logoBadge: project.logoBadge, logoIco: !!(project as any).logoIco });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -559,6 +559,19 @@ router.get("/install/:projectId", async (req, res) => {
 
   res.setHeader("Content-Type", "text/html");
   res.send(html);
+});
+
+// Serve favicon.ico (multi-res ICO)
+router.get("/pwa/icon/:projectId/favicon.ico", async (req, res) => {
+  const project = await getProjectById(req.params.projectId);
+  if (!project) { res.status(404).end(); return; }
+  const dataUrl = (project as any).logoIco as string | null;
+  if (!dataUrl) { res.status(404).end(); return; }
+  const base64 = dataUrl.split(",")[1];
+  if (!base64) { res.status(404).end(); return; }
+  res.setHeader("Content-Type", "image/x-icon");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(Buffer.from(base64, "base64"));
 });
 
 // Serve icon PNG decoded from stored base64 data URL

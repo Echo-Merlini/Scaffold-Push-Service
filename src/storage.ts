@@ -58,6 +58,7 @@ export async function updateProjectLogo(id: string, logos: {
   logo: string | null;
   logo512?: string | null;
   logoBadge?: string | null;
+  logoIco?: string | null;
 }) {
   const [updated] = await db
     .update(projects)
