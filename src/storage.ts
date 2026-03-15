@@ -24,6 +24,15 @@ export async function deleteProject(id: string) {
   await db.delete(projects).where(eq(projects.id, id));
 }
 
+export async function updateProjectLogo(id: string, logo: string | null) {
+  const [updated] = await db
+    .update(projects)
+    .set({ logo })
+    .where(eq(projects.id, id))
+    .returning();
+  return updated;
+}
+
 // --- Subscriptions ---
 
 export async function upsertSubscription(data: {
@@ -70,6 +79,7 @@ export async function logNotification(data: {
   title: string;
   body: string;
   url?: string;
+  image?: string;
   successCount: number;
   failureCount: number;
 }) {

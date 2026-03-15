@@ -424,6 +424,10 @@
         <div class="form-row">
           <textarea id="send-body" placeholder="Notification message"></textarea>
         </div>
+        <div class="label">Image URL — large image in notification body (optional)</div>
+        <div class="form-row">
+          <input type="text" id="send-image" placeholder="https://yourapp.com/image.jpg" />
+        </div>
         <div class="label">URL to open (optional)</div>
         <div class="form-row">
           <input type="text" id="send-url" placeholder="https://yourapp.com/page" />
@@ -663,6 +667,14 @@ self.addEventListener("notificationclick", (event) => {
         </div>
         <div class="label">API Key — click to copy</div>
         <div class="api-key" onclick="copyText(this)" data-val="${p.apiKey}">${p.apiKey}</div>
+        <hr class="divider" />
+        <div class="label">Logo URL — auto-used as notification icon</div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          ${p.logo ? `<img src="${p.logo}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1px solid var(--border)" />` : ''}
+          <input type="text" id="logo-${p.id}" placeholder="https://yourapp.com/icon.png" value="${p.logo || ''}" style="flex:1" />
+          <button class="btn btn-ghost" onclick="saveLogo('${p.id}')">Save</button>
+          ${p.logo ? `<button class="btn btn-danger" onclick="removeLogo('${p.id}')">Remove</button>` : ''}
+        </div>
         <div style="display:flex;gap:.5rem;margin-top:1rem">
           <button class="btn btn-ghost" onclick="navigate('send');document.getElementById('send-project').value='${p.id}'">Send notification</button>
           <button class="btn btn-danger" onclick="deleteProject('${p.id}','${p.name}')">Delete</button>
@@ -689,11 +701,13 @@ self.addEventListener("notificationclick", (event) => {
     const title = document.getElementById('send-title').value.trim();
     const body = document.getElementById('send-body').value.trim();
     const url = document.getElementById('send-url').value.trim();
+    const image = document.getElementById('send-image').value.trim();
 
     if (!title || !body) { toast('Title and body required'); return; }
 
     const payload = { title, body };
     if (url) payload.url = url;
+    if (image) payload.image = image;
 
     const res = await fetch(`${BASE}/notify`, {
       method: 'POST',
@@ -704,6 +718,28 @@ self.addEventListener("notificationclick", (event) => {
     document.getElementById('send-result').textContent =
       `Delivered: ${data.sent}  ·  Failed: ${data.failed}  ·  Expired removed: ${data.expired}`;
     toast(`Sent to ${data.sent} subscribers`);
+  }
+
+  async function saveLogo(projectId) {
+    const url = document.getElementById(`logo-${projectId}`).value.trim();
+    const res = await fetch(`${BASE}/admin/projects/${projectId}/logo`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ logo: url || null })
+    });
+    if (!res.ok) { toast('Failed to save logo'); return; }
+    toast('Logo saved');
+    await refreshAll();
+  }
+
+  async function removeLogo(projectId) {
+    await fetch(`${BASE}/admin/projects/${projectId}/logo`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ logo: null })
+    });
+    toast('Logo removed');
+    await refreshAll();
   }
 
   // ── History ───────────────────────────────────────────────────

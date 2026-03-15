@@ -5,6 +5,7 @@ export const projects = pgTable("projects", {
   id: text("id").primaryKey(),           // nanoid
   name: text("name").notNull(),
   apiKey: text("api_key").notNull().unique(),
+  logo: text("logo"),                    // URL — auto-used as icon in notifications
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -26,6 +27,7 @@ export const notificationLog = pgTable("notification_log", {
   title: text("title").notNull(),
   body: text("body").notNull(),
   url: text("url"),
+  image: text("image"),                  // large image in notification body
   sentAt: timestamp("sent_at").defaultNow().notNull(),
   successCount: integer("success_count").notNull().default(0),
   failureCount: integer("failure_count").notNull().default(0),

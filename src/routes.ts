@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireApiKey, requireAdminKey } from "./middleware/auth.js";
 import {
-  createProject, listProjects, deleteProject,
+  createProject, listProjects, deleteProject, updateProjectLogo,
   upsertSubscription, removeSubscription, getSubscriptionsForProject,
   logNotification, getNotificationHistory,
 } from "./storage.js";
@@ -33,6 +33,12 @@ router.post("/admin/projects", requireAdminKey, async (req, res) => {
   const { name } = z.object({ name: z.string().min(1) }).parse(req.body);
   const project = await createProject(name);
   res.status(201).json(project);
+});
+
+router.patch("/admin/projects/:id/logo", requireAdminKey, async (req, res) => {
+  const { logo } = z.object({ logo: z.string().url().nullable() }).parse(req.body);
+  const project = await updateProjectLogo(req.params.id, logo);
+  res.json(project);
 });
 
 router.delete("/admin/projects/:id", requireAdminKey, async (req, res) => {
@@ -77,32 +83,46 @@ const notifySchema = z.object({
   title: z.string().min(1),
   body: z.string().min(1),
   url: z.string().url().optional(),
-  icon: z.string().optional(),
+  icon: z.string().optional(),   // overrides project logo if provided
   badge: z.string().optional(),
+  image: z.string().url().optional(),
 });
 
 router.post("/notify", requireApiKey, async (req, res) => {
   const project = (req as any).project;
   const payload = notifySchema.parse(req.body);
 
+  // Auto-attach project logo as icon if not overridden
+  const finalPayload = {
+    ...payload,
+    icon: payload.icon ?? project.logo ?? undefined,
+  };
+
   const subs = await getSubscriptionsForProject(project.id);
   if (subs.length === 0) {
-    res.json({ sent: 0, failed: 0 });
+    res.json({ sent: 0, failed: 0, expired: 0 });
     return;
   }
 
   const results = await Promise.all(
-    subs.map((sub) => sendToSubscription(sub, payload))
+    subs.map((sub) => sendToSubscription(sub, finalPayload))
   );
 
   const successCount = results.filter((r) => r.success).length;
   const failureCount = results.length - successCount;
 
-  // Remove expired subscriptions
   const expired = subs.filter((_, i) => results[i].expired);
   await Promise.all(expired.map((s) => removeSubscription(s.endpoint)));
 
-  await logNotification({ projectId: project.id, ...payload, successCount, failureCount });
+  await logNotification({
+    projectId: project.id,
+    title: payload.title,
+    body: payload.body,
+    url: payload.url,
+    image: payload.image,
+    successCount,
+    failureCount,
+  });
 
   res.json({ sent: successCount, failed: failureCount, expired: expired.length });
 });
