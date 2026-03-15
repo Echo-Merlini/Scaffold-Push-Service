@@ -85,9 +85,10 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
 // Save widget enable/disable settings
 router.patch("/admin/projects/:id/widgets", requireAdminKey, async (req, res) => {
   const schema = z.object({
-    bell:    z.boolean(),
-    banner:  z.boolean(),
-    install: z.boolean(),
+    bell:          z.boolean(),
+    banner:        z.boolean(),
+    install:       z.boolean(),
+    installBanner: z.boolean().optional(),
   });
   const cfg = schema.parse(req.body);
   const project = await updateProjectWidgets(req.params.id, JSON.stringify(cfg));
@@ -184,12 +185,14 @@ router.get("/widgets.js", async (req, res) => {
 
   const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
   const base  = `${proto}://${req.get("host")}`;
-  const defaults = { bell: true, banner: false, install: true };
+  const defaults = { bell: true, banner: false, install: true, installBanner: false };
   let widgetCfg = defaults;
   try { widgetCfg = { ...defaults, ...JSON.parse((project as any).widgetsConfig || "{}") }; } catch {}
 
   const themeColor = project.pwaThemeColor || "#16a34a";
   const iconUrl    = project.logo ? `${base}/pwa/icon/${project.id}/192.png` : null;
+  const appName    = (project.pwaName || project.name).replace(/'/g, "\\'");
+  const installUrl = `${base}/install/${project.id}`;
 
   const js = `/* Push Service Widgets — ${project.name} */
 (function(){
@@ -197,6 +200,8 @@ router.get("/widgets.js", async (req, res) => {
   var KEY='${key}';
   var THEME='${themeColor}';
   var ICON=${iconUrl ? `'${iconUrl}'` : 'null'};
+  var APP_NAME='${appName}';
+  var INSTALL_URL='${installUrl}';
   var CFG=${JSON.stringify(widgetCfg)};
   var DISMISSED_INSTALL='_pws_install_dismissed';
   var dp=null;
@@ -391,11 +396,65 @@ router.get("/widgets.js", async (req, res) => {
     };
   }
 
+  /* ── Installation Banner ── */
+  function mountInstallBanner(){
+    var DISMISSED_BANNER='_pws_ibanner';
+    var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
+    var isStandalone=!!window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches;
+    if(isStandalone)return; // already installed
+    var last=localStorage.getItem(DISMISSED_BANNER);
+    if(last&&Date.now()-parseInt(last)<7*24*60*60*1000)return; // snoozed for 7 days
+
+    var banner=mkEl('div',null,{position:'fixed',bottom:'0',left:'0',right:'0',zIndex:'999997',
+      background:'#111',borderTop:'1px solid #222',display:'flex',alignItems:'center',
+      gap:'10px',padding:'10px 14px',fontFamily:'system-ui,-apple-system,sans-serif',
+      transform:'translateY(100%)',transition:'transform .35s cubic-bezier(.4,0,.2,1)'});
+
+    function dismiss(){localStorage.setItem(DISMISSED_BANNER,Date.now().toString());banner.remove();}
+
+    if(ICON){var ic=mkEl('img',{src:ICON},{width:'40px',height:'40px',borderRadius:'10px',objectFit:'cover',flexShrink:'0'});}
+    else{var ic=mkEl('div',{textContent:'📲'},{fontSize:'28px',flexShrink:'0'});}
+
+    var info=mkEl('div',null,{flex:'1',minWidth:'0'});
+    var nm=mkEl('div',{textContent:APP_NAME},{fontWeight:'700',fontSize:'13px',color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'});
+    var sub=mkEl('div',{textContent:isAppleMobile?'Tap to install on your Home Screen':'Install for the best experience'},{fontSize:'11px',color:'#888',marginTop:'2px'});
+    info.append(nm,sub);
+
+    var instBtn=mkEl('button',{textContent:'Install'},{background:THEME,border:'none',borderRadius:'10px',
+      color:'#fff',padding:'8px 16px',cursor:'pointer',fontWeight:'700',fontSize:'13px',flexShrink:'0',
+      whiteSpace:'nowrap'});
+    var xBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#555',
+      cursor:'pointer',fontSize:'16px',padding:'4px',flexShrink:'0',lineHeight:'1'});
+    xBtn.onclick=dismiss;
+
+    banner.append(ic,info,instBtn,xBtn);
+    document.body.append(banner);
+    requestAnimationFrame(function(){requestAnimationFrame(function(){banner.style.transform='translateY(0)';});});
+
+    var deferred=null;
+    window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;});
+
+    instBtn.onclick=async function(){
+      if(deferred){
+        instBtn.disabled=true;
+        await deferred.prompt();
+        var r=await deferred.userChoice;
+        if(r.outcome==='accepted'){banner.remove();return;}
+        dismiss();
+      }else if(isAppleMobile){
+        window.location.href=INSTALL_URL;
+      }else{
+        window.location.href=INSTALL_URL;
+      }
+    };
+  }
+
   /* ── Init ── */
   document.addEventListener('DOMContentLoaded',function(){
     registerSW();
     if(CFG.bell)mountBell();
     if(CFG.install)mountInstall();
+    if(CFG.installBanner)mountInstallBanner();
   });
 
 })();`;
