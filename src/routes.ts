@@ -284,7 +284,7 @@ router.get("/widgets.js", async (req, res) => {
         btn.style.color='#aaa';
         btn.innerHTML='&#x1F515;';
         btn.title='Enable notifications';
-        panelBody.innerHTML='<p style="color:#888;font-size:12px;margin-bottom:12px">Get notified about new posts and community updates — even when you\'re away.</p>';
+        panelBody.innerHTML='<p style="color:#888;font-size:12px;margin-bottom:12px">Get notified about new posts and community updates — even when you\\'re away.</p>';
         var sb=mkEl('button',{textContent:'Enable notifications'},{width:'100%',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'10px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
         sb.onclick=async function(){
           sb.disabled=true;sb.textContent='...';
