@@ -263,16 +263,14 @@ router.get("/widgets.js", async (req, res) => {
 
   /* ── Bell Widget ── */
   function mountBell(){
-    var isIos=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!(window as any).MSStream;
-    // iPadOS 13+ spoofs macOS desktop Safari UA — detect via touch points
-    var isIpadOs=/macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1;
-    isIos=isIos||isIpadOs;
-    var isStandalone=(navigator as any).standalone===true||window.matchMedia('(display-mode:standalone)').matches;
-    var pushSupported='serviceWorker' in navigator && 'PushManager' in window;
+    // navigator.vendor is "Apple Computer, Inc." on all Safari versions (stable across iOS versions)
+    // maxTouchPoints>0 distinguishes iPhone/iPad from Mac (Macs always return 0)
+    var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
+    var isStandalone=!!(window.navigator.standalone)||window.matchMedia('(display-mode:standalone)').matches;
+    var pushSupported='serviceWorker' in navigator&&'PushManager' in window;
 
-    // On iOS, push only works in installed PWA (standalone mode) — iOS 16.4+
-    // Show the bell even in browser so we can guide users to install
-    if(!pushSupported && !isIos)return;
+    // Show on Apple touch devices (to guide install) or any browser with push support
+    if(!pushSupported&&!isAppleMobile)return;
 
     var wrap=mkEl('div',null,{position:'fixed',bottom:'24px',right:'24px',zIndex:'999999',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'8px',fontFamily:'system-ui,-apple-system,sans-serif'});
 
@@ -292,8 +290,8 @@ router.get("/widgets.js", async (req, res) => {
     btn.onmouseenter=function(){btn.style.transform='scale(1.1)';};
     btn.onmouseleave=function(){btn.style.transform='scale(1)';};
 
-    // iOS in browser — can't subscribe, show install instructions instead
-    if(isIos && !isStandalone){
+    // Apple mobile in browser — push requires installed PWA, show install instructions
+    if(isAppleMobile && !isStandalone){
       btn.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
       panel.style.flexDirection='column';
       panelBody.innerHTML=
