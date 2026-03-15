@@ -2,11 +2,26 @@ import "dotenv/config";
 import express from "express";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { sql } from "drizzle-orm";
+import { db } from "./db.js";
 import { initWebPush } from "./push.js";
 import { router } from "./routes.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Add new columns without breaking existing deployments
+async function runMigrations() {
+  await db.execute(sql`
+    ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS pwa_name TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_short_name TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_theme_color TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_bg_color TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_display TEXT
+  `);
+}
+
+await runMigrations();
 initWebPush();
 
 const app = express();

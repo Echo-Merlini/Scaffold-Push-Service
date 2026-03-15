@@ -16,6 +16,25 @@ export async function getProjectByApiKey(apiKey: string) {
   return db.query.projects.findFirst({ where: eq(projects.apiKey, apiKey) });
 }
 
+export async function getProjectById(id: string) {
+  return db.query.projects.findFirst({ where: eq(projects.id, id) });
+}
+
+export async function updateProjectPwa(id: string, pwa: {
+  pwaName: string | null;
+  pwaShortName: string | null;
+  pwaThemeColor: string | null;
+  pwaBgColor: string | null;
+  pwaDisplay: string | null;
+}) {
+  const [updated] = await db
+    .update(projects)
+    .set(pwa)
+    .where(eq(projects.id, id))
+    .returning();
+  return updated;
+}
+
 export async function listProjects() {
   return db.query.projects.findMany();
 }

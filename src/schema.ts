@@ -8,6 +8,12 @@ export const projects = pgTable("projects", {
   logo: text("logo"),                    // 192×192 data URL — auto-used as notification icon
   logo512: text("logo_512"),             // 512×512 data URL — PWA app icon
   logoBadge: text("logo_badge"),         // 96×96 data URL — Android badge
+  // PWA manifest config — served at /pwa/manifest.json?key=API_KEY
+  pwaName: text("pwa_name"),
+  pwaShortName: text("pwa_short_name"),
+  pwaThemeColor: text("pwa_theme_color"),
+  pwaBgColor: text("pwa_bg_color"),
+  pwaDisplay: text("pwa_display"),       // standalone | fullscreen | minimal-ui | browser
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

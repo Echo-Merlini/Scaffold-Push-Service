@@ -384,6 +384,10 @@
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="4"/><rect x="14" y="3" width="7" height="4"/><rect x="3" y="11" width="18" height="10" rx="2"/></svg>
       UI Components
     </div>
+    <div class="nav-item" onclick="navigate('pwa')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      PWA Setup
+    </div>
     <div class="nav-item" onclick="navigate('settings')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
@@ -549,6 +553,109 @@ self.addEventListener("notificationclick", (event) => {
       </div>
     </div>
 
+    <!-- PWA Setup -->
+    <div class="section" id="section-pwa">
+
+      <!-- Checklist -->
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">What makes a PWA?</span></div>
+        <div style="display:flex;flex-direction:column;gap:.6rem;font-size:.82rem">
+          <div style="display:flex;align-items:flex-start;gap:.75rem">
+            <span style="color:var(--green);font-size:1rem;margin-top:.05rem">✓</span>
+            <div><span style="color:var(--text)">HTTPS</span> <span style="color:var(--text-dim)">— Railway and Vercel provide this automatically.</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:.75rem">
+            <span style="color:var(--green);font-size:1rem;margin-top:.05rem">✓</span>
+            <div><span style="color:var(--text)">Service Worker</span> <span style="color:var(--text-dim)">— copy sw.js from UI Components → Service Worker.</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:.75rem">
+            <span style="color:#facc15;font-size:1rem;margin-top:.05rem">→</span>
+            <div><span style="color:var(--text)">Web App Manifest</span> <span style="color:var(--text-dim)">— configure below. The push service hosts it for you — no file to manage.</span></div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:.75rem">
+            <span style="color:#facc15;font-size:1rem;margin-top:.05rem">→</span>
+            <div><span style="color:var(--text)">App Icon</span> <span style="color:var(--text-dim)">— upload your logo in Projects. It becomes the PWA icon automatically.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Project selector -->
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="label">Project</div>
+        <select id="pwa-project" onchange="renderPwaSetup()" style="width:100%"></select>
+      </div>
+
+      <!-- Config form -->
+      <div class="card" id="pwa-config-card">
+        <div class="card-header"><span class="card-title">Manifest Settings</span></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div>
+            <div class="label">App Name <span style="color:var(--muted);font-weight:400">(full name)</span></div>
+            <input type="text" id="pwa-name" placeholder="My Awesome App" />
+          </div>
+          <div>
+            <div class="label">Short Name <span style="color:var(--muted);font-weight:400">(home screen, ≤12 chars)</span></div>
+            <input type="text" id="pwa-short-name" placeholder="MyApp" maxlength="12" />
+          </div>
+          <div>
+            <div class="label">Theme Color <span style="color:var(--muted);font-weight:400">(browser toolbar)</span></div>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <input type="color" id="pwa-theme-color" value="#000000" style="width:2.25rem;height:1.85rem;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;padding:.1rem" oninput="pwaColorSync('theme')">
+              <input type="text" id="pwa-theme-color-text" value="#000000" style="width:90px;font-family:monospace" oninput="pwaColorTextSync('theme')">
+            </div>
+          </div>
+          <div>
+            <div class="label">Background Color <span style="color:var(--muted);font-weight:400">(splash screen)</span></div>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <input type="color" id="pwa-bg-color" value="#ffffff" style="width:2.25rem;height:1.85rem;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;padding:.1rem" oninput="pwaColorSync('bg')">
+              <input type="text" id="pwa-bg-color-text" value="#ffffff" style="width:90px;font-family:monospace" oninput="pwaColorTextSync('bg')">
+            </div>
+          </div>
+          <div>
+            <div class="label">Display Mode</div>
+            <select id="pwa-display" style="width:auto">
+              <option value="standalone">standalone — feels like a native app</option>
+              <option value="fullscreen">fullscreen — no browser chrome</option>
+              <option value="minimal-ui">minimal-ui — small browser controls</option>
+              <option value="browser">browser — regular browser tab</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:1.25rem;display:flex;gap:.5rem;align-items:center">
+          <button class="btn" onclick="savePwaConfig()">Save Manifest</button>
+          <span id="pwa-save-status" style="font-size:.78rem;color:var(--text-dim)"></span>
+        </div>
+      </div>
+
+      <!-- Generated head snippet -->
+      <div class="card" id="pwa-snippet-card" style="display:none">
+        <div class="card-header">
+          <span class="card-title">Add to your site's <code style="font-size:.8rem">&lt;head&gt;</code></span>
+          <button class="btn btn-ghost" style="font-size:.75rem" onclick="copyPwaSnippet()">Copy</button>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">
+          Paste these tags inside <code>&lt;head&gt;</code> of every page. That's all — the push service handles the rest.
+        </p>
+        <pre id="pwa-head-snippet" style="font-size:.75rem"></pre>
+        <div style="margin-top:1rem;padding:.85rem;background:#0a0a0a;border:1px solid var(--border);border-radius:6px">
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">Manifest URL (direct link)</div>
+          <div class="api-key" id="pwa-manifest-url" onclick="copyText(this)" style="word-break:break-all"></div>
+        </div>
+      </div>
+
+      <!-- Icon status -->
+      <div class="card" id="pwa-icon-card" style="display:none">
+        <div class="card-header"><span class="card-title">App Icons</span></div>
+        <div id="pwa-icon-preview" style="display:flex;gap:1.5rem;align-items:flex-end;flex-wrap:wrap"></div>
+        <p style="font-size:.78rem;color:var(--text-dim);margin-top:.75rem">
+          Icons are served from <code>/pwa/icon/&lt;projectId&gt;/192.png</code> — update them anytime in the Projects tab.
+        </p>
+      </div>
+
+    </div>
+
     <!-- Settings -->
     <div class="section" id="section-settings">
       <div class="card">
@@ -585,6 +692,7 @@ self.addEventListener("notificationclick", (event) => {
     history:   { title: 'History',            sub: 'Past notifications sent' },
     integrate: { title: 'Integration Guide',  sub: 'Connect your apps to this service' },
     widgets:   { title: 'UI Components',      sub: 'Drop-in widgets for your site' },
+    pwa:       { title: 'PWA Setup',          sub: 'Make your app installable on any device' },
     settings:  { title: 'Settings',           sub: 'VAPID keys and service info' },
   };
 
@@ -616,6 +724,7 @@ self.addEventListener("notificationclick", (event) => {
     renderProjects();
     populateProjectSelects();
     renderWidgets();
+    renderPwaSetup();
   }
 
   // ── Navigation ──────────────────────────────────────────────
@@ -632,6 +741,7 @@ self.addEventListener("notificationclick", (event) => {
 
     if (page === 'integrate') renderIntegrationGuide();
     if (page === 'widgets') renderWidgets();
+    if (page === 'pwa') renderPwaSetup();
     if (page === 'settings') renderSettings();
     if (page === 'history') loadHistory();
   }
@@ -762,7 +872,7 @@ self.addEventListener("notificationclick", (event) => {
   // ── Send ──────────────────────────────────────────────────────
 
   function populateProjectSelects() {
-    ['send-project', 'history-project', 'widgets-project'].forEach(id => {
+    ['send-project', 'history-project', 'widgets-project', 'pwa-project'].forEach(id => {
       const sel = document.getElementById(id);
       const current = sel.value;
       sel.innerHTML = projects.map(p => `<option value="${p.id}" data-key="${p.apiKey}">${p.name}</option>`).join('');
@@ -943,6 +1053,120 @@ await fetch("${BASE}/notify", {
   document.getElementById('admin-key-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') login();
   });
+
+  // ── PWA Setup ─────────────────────────────────────────────────
+
+  function renderPwaSetup() {
+    var sel = document.getElementById('pwa-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt) return;
+
+    var p = projects.find(function(x) { return x.id === opt.value; });
+    if (!p) return;
+
+    // Fill form with saved values (fall back to sensible defaults)
+    document.getElementById('pwa-name').value        = p.pwaName       || p.name || '';
+    document.getElementById('pwa-short-name').value  = p.pwaShortName  || (p.name || '').slice(0, 12);
+    var tc = p.pwaThemeColor || '#000000';
+    var bc = p.pwaBgColor    || '#ffffff';
+    document.getElementById('pwa-theme-color').value      = tc;
+    document.getElementById('pwa-theme-color-text').value = tc;
+    document.getElementById('pwa-bg-color').value          = bc;
+    document.getElementById('pwa-bg-color-text').value     = bc;
+    document.getElementById('pwa-display').value = p.pwaDisplay || 'standalone';
+
+    // Snippet + manifest URL
+    var manifestUrl = BASE + '/pwa/manifest.json?key=' + p.apiKey;
+    var snippet = [
+      '<!-- PWA manifest — makes your app installable -->',
+      '<link rel="manifest" href="' + manifestUrl + '">',
+      '',
+      '<!-- Theme color for browser toolbar -->',
+      '<meta name="theme-color" content="' + tc + '">',
+      '',
+      '<!-- iOS / Safari PWA support -->',
+      '<meta name="apple-mobile-web-app-capable" content="yes">',
+      '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">',
+      '<meta name="apple-mobile-web-app-title" content="' + (p.pwaShortName || p.name || '') + '">',
+    ];
+    if (p.logo) {
+      snippet.push('<link rel="apple-touch-icon" href="' + BASE + '/pwa/icon/' + p.id + '/192.png">');
+    }
+    document.getElementById('pwa-head-snippet').textContent = snippet.join('\n');
+    document.getElementById('pwa-manifest-url').textContent = manifestUrl;
+    document.getElementById('pwa-manifest-url').dataset.val = manifestUrl;
+    document.getElementById('pwa-snippet-card').style.display = 'block';
+
+    // Icon preview
+    var iconHtml = '';
+    if (p.logo) {
+      iconHtml += '<div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">' +
+        '<img src="' + BASE + '/pwa/icon/' + p.id + '/192.png" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--border)" />' +
+        '<span style="font-size:.65rem;color:var(--muted)">192×192</span></div>';
+    }
+    if (p.logo512) {
+      iconHtml += '<div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">' +
+        '<img src="' + BASE + '/pwa/icon/' + p.id + '/512.png" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--border)" />' +
+        '<span style="font-size:.65rem;color:var(--muted)">512×512</span></div>';
+    }
+    if (!iconHtml) {
+      iconHtml = '<div style="font-size:.82rem;color:var(--muted)">No logo uploaded yet — go to Projects to upload one.</div>';
+    }
+    document.getElementById('pwa-icon-preview').innerHTML = iconHtml;
+    document.getElementById('pwa-icon-card').style.display = 'block';
+  }
+
+  function pwaColorSync(which) {
+    var picker = document.getElementById('pwa-' + which + '-color');
+    var text   = document.getElementById('pwa-' + which + '-color-text');
+    if (picker && text) text.value = picker.value;
+  }
+
+  function pwaColorTextSync(which) {
+    var picker = document.getElementById('pwa-' + which + '-color');
+    var text   = document.getElementById('pwa-' + which + '-color-text');
+    if (picker && text && /^#[0-9a-fA-F]{6}$/.test(text.value)) picker.value = text.value;
+  }
+
+  async function savePwaConfig() {
+    var sel = document.getElementById('pwa-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt) return;
+
+    var status = document.getElementById('pwa-save-status');
+    status.textContent = 'Saving…';
+
+    var body = {
+      pwaName:       document.getElementById('pwa-name').value.trim() || null,
+      pwaShortName:  document.getElementById('pwa-short-name').value.trim() || null,
+      pwaThemeColor: document.getElementById('pwa-theme-color-text').value.trim() || null,
+      pwaBgColor:    document.getElementById('pwa-bg-color-text').value.trim() || null,
+      pwaDisplay:    document.getElementById('pwa-display').value || null,
+    };
+
+    var res = await fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) { status.textContent = 'Save failed'; return; }
+
+    // Update local projects cache so snippet refreshes
+    var updated = await res.json();
+    var idx = projects.findIndex(function(p) { return p.id === updated.id; });
+    if (idx !== -1) projects[idx] = updated;
+
+    status.textContent = 'Saved!';
+    setTimeout(function() { status.textContent = ''; }, 2500);
+    renderPwaSetup(); // refresh snippet with new values
+    toast('PWA manifest saved');
+  }
+
+  function copyPwaSnippet() {
+    var pre = document.getElementById('pwa-head-snippet');
+    if (pre) { navigator.clipboard.writeText(pre.textContent); toast('Copied!'); }
+  }
 
   // ── UI Components / Widgets ───────────────────────────────────
 

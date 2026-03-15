@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireApiKey, requireAdminKey } from "./middleware/auth.js";
 import {
   createProject, listProjects, deleteProject, updateProjectLogo,
+  getProjectById, updateProjectPwa,
   upsertSubscription, removeSubscription, getSubscriptionsForProject,
   logNotification, getNotificationHistory,
 } from "./storage.js";
@@ -62,6 +63,66 @@ router.post("/admin/projects/:id/logo/upload", requireAdminKey, upload.single("l
 router.delete("/admin/projects/:id", requireAdminKey, async (req, res) => {
   await deleteProject(req.params.id);
   res.json({ ok: true });
+});
+
+// Save PWA manifest config for a project
+router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
+  const schema = z.object({
+    pwaName: z.string().nullable(),
+    pwaShortName: z.string().nullable(),
+    pwaThemeColor: z.string().nullable(),
+    pwaBgColor: z.string().nullable(),
+    pwaDisplay: z.enum(["standalone", "fullscreen", "minimal-ui", "browser"]).nullable(),
+  });
+  const pwa = schema.parse(req.body);
+  const project = await updateProjectPwa(req.params.id, pwa);
+  res.json(project);
+});
+
+// ── PWA manifest + icons (public — browsers fetch these directly) ─────────────
+
+// Serve web app manifest dynamically per project
+router.get("/pwa/manifest.json", async (req, res) => {
+  const key = req.query.key as string;
+  if (!key) { res.status(400).json({ error: "key query param required" }); return; }
+
+  const project = await getProjectByApiKey(key);
+  if (!project) { res.status(404).json({ error: "project not found" }); return; }
+
+  const base = `${req.protocol}://${req.get("host")}`;
+  const icons: object[] = [];
+  if (project.logo)    icons.push({ src: `${base}/pwa/icon/${project.id}/192.png`, sizes: "192x192", type: "image/png" });
+  if (project.logo512) icons.push({ src: `${base}/pwa/icon/${project.id}/512.png`, sizes: "512x512", type: "image/png", purpose: "any maskable" });
+
+  const manifest = {
+    name:             project.pwaName       || project.name,
+    short_name:       project.pwaShortName  || project.name.slice(0, 12),
+    start_url:        "/",
+    display:          project.pwaDisplay    || "standalone",
+    theme_color:      project.pwaThemeColor || "#000000",
+    background_color: project.pwaBgColor    || "#ffffff",
+    icons,
+  };
+
+  res.setHeader("Content-Type", "application/manifest+json");
+  res.json(manifest);
+});
+
+// Serve icon PNG decoded from stored base64 data URL
+router.get("/pwa/icon/:projectId/:size.png", async (req, res) => {
+  const project = await getProjectById(req.params.projectId);
+  if (!project) { res.status(404).end(); return; }
+
+  const size = req.params.size;
+  const dataUrl = size === "512" ? project.logo512 : size === "96" ? project.logoBadge : project.logo;
+  if (!dataUrl) { res.status(404).end(); return; }
+
+  const base64 = dataUrl.split(",")[1];
+  if (!base64) { res.status(404).end(); return; }
+
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(Buffer.from(base64, "base64"));
 });
 
 // ── Subscriptions (called from client-side of your web apps) ──────────────────
