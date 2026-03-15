@@ -25,6 +25,8 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS pwa_display TEXT,
       ADD COLUMN IF NOT EXISTS pwa_url TEXT,
       ADD COLUMN IF NOT EXISTS pwa_description TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_youtube_url TEXT,
+      ADD COLUMN IF NOT EXISTS install_slug TEXT UNIQUE,
       ADD COLUMN IF NOT EXISTS widgets_config TEXT DEFAULT '{}'
   `);
   await db.execute(sql`

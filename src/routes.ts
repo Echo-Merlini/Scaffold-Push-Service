@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireApiKey, requireAdminKey } from "./middleware/auth.js";
 import {
   createProject, listProjects, deleteProject, updateProjectLogo,
-  getProjectByApiKey, getProjectById, updateProjectPwa, updateProjectWidgets,
+  getProjectByApiKey, getProjectById, getProjectBySlug, updateProjectPwa, updateProjectWidgets,
   addScreenshot, deleteScreenshot, getScreenshotsForProject, getScreenshotById,
   upsertSubscription, removeSubscription, removeSubscriptionById, getSubscriptionsForProject,
   logNotification, getNotificationHistory,
@@ -75,7 +75,9 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
     pwaBgColor: z.string().nullable(),
     pwaDisplay: z.enum(["standalone", "fullscreen", "minimal-ui", "browser"]).nullable(),
     pwaUrl: z.string().url().nullable(),
-    pwaDescription: z.string().nullable(),
+    pwaDescription: z.string().nullable().optional(),
+    pwaYoutubeUrl: z.string().url().nullable().optional(),
+    installSlug: z.string().regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers and hyphens").nullable().optional(),
   });
   const pwa = schema.parse(req.body);
   const project = await updateProjectPwa(req.params.id, pwa);
@@ -192,7 +194,7 @@ router.get("/widgets.js", async (req, res) => {
   const themeColor = project.pwaThemeColor || "#16a34a";
   const iconUrl    = project.logo ? `${base}/pwa/icon/${project.id}/192.png` : null;
   const appName    = (project.pwaName || project.name).replace(/'/g, "\\'");
-  const installUrl = `${base}/install/${project.id}`;
+  const installUrl = `${base}/install/${(project as any).installSlug || project.id}`;
 
   const js = `/* Push Service Widgets — ${project.name} */
 (function(){
@@ -535,9 +537,12 @@ router.get("/pwa/screenshot/:id.png", async (req, res) => {
   res.send(Buffer.from(base64, "base64"));
 });
 
-// Installation page — shareable app-store-style install page
-router.get("/install/:projectId", async (req, res) => {
-  const project = await getProjectById(req.params.projectId);
+// Installation page — resolve by custom slug OR project ID
+router.get("/install/:slugOrId", async (req, res) => {
+  const param = req.params.slugOrId;
+  // Try slug first, fall back to ID
+  let project = await getProjectBySlug(param);
+  if (!project) project = await getProjectById(param);
   if (!project) { res.status(404).send("App not found"); return; }
 
   const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
@@ -546,16 +551,26 @@ router.get("/install/:projectId", async (req, res) => {
     ? `${base}/pwa/icon/${project.id}/512.png`
     : project.logo ? `${base}/pwa/icon/${project.id}/192.png` : null;
   const shots = await getScreenshotsForProject(project.id);
-  const appUrl   = (project as any).pwaUrl  || "#";
-  const appName  = (project as any).pwaName || project.name;
-  const appDesc  = (project as any).pwaDescription || "";
-  const themeColor = (project as any).pwaThemeColor || "#000000";
-  const bgColor    = (project as any).pwaBgColor    || "#ffffff";
+  const appUrl     = (project as any).pwaUrl         || "#";
+  const appName    = (project as any).pwaName        || project.name;
+  const appDesc    = (project as any).pwaDescription || "";
+  const youtubeUrl = (project as any).pwaYoutubeUrl  || "";
+  const themeColor = (project as any).pwaThemeColor  || "#000000";
+  const bgColor    = (project as any).pwaBgColor     || "#ffffff";
   const manifestUrl = `${base}/pwa/manifest.json?key=${project.apiKey}`;
 
   const screenshotHtml = shots.map(s =>
     `<img src="${base}/pwa/screenshot/${s.id}.png" class="screenshot" alt="${s.label || appName} screenshot" />`
   ).join("");
+
+  // Convert YouTube watch URL to embed URL
+  let youtubeEmbed = "";
+  if (youtubeUrl) {
+    const ytMatch = youtubeUrl.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if (ytMatch) {
+      youtubeEmbed = `https://www.youtube.com/embed/${ytMatch[1]}`;
+    }
+  }
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -590,6 +605,8 @@ router.get("/install/:projectId", async (req, res) => {
     .ios-tip{display:none;margin-top:1rem;padding:.85rem 1rem;background:#f5f5f5;border-radius:10px;font-size:.8rem;color:#555;line-height:1.6;text-align:center}
     .open-btn{display:block;margin-top:.75rem;text-align:center;font-size:.82rem;color:#888;text-decoration:none}
     .powered{margin-top:2rem;font-size:.7rem;color:#bbb;text-align:center}
+    .yt-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:1.25rem}
+    .yt-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;border-radius:12px}
   </style>
 </head>
 <body>
@@ -603,6 +620,7 @@ router.get("/install/:projectId", async (req, res) => {
     </div>
     <div class="body">
       ${appDesc ? `<p class="desc">${appDesc}</p>` : ""}
+      ${youtubeEmbed ? `<div class="yt-wrap"><iframe src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe></div>` : ""}
       ${shots.length ? `<div class="screenshots">${screenshotHtml}</div>` : ""}
       <button class="install-btn" id="install-btn" onclick="triggerInstall()">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

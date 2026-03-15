@@ -20,6 +20,10 @@ export async function getProjectById(id: string) {
   return db.query.projects.findFirst({ where: eq(projects.id, id) });
 }
 
+export async function getProjectBySlug(slug: string) {
+  return db.query.projects.findFirst({ where: eq(projects.installSlug, slug) });
+}
+
 export async function updateProjectPwa(id: string, pwa: {
   pwaName?: string | null;
   pwaShortName?: string | null;
@@ -28,6 +32,8 @@ export async function updateProjectPwa(id: string, pwa: {
   pwaDisplay?: string | null;
   pwaUrl?: string | null;
   pwaDescription?: string | null;
+  pwaYoutubeUrl?: string | null;
+  installSlug?: string | null;
 }) {
   const [updated] = await db
     .update(projects)

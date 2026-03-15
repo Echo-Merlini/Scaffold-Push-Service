@@ -388,6 +388,10 @@
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
       PWA Setup
     </div>
+    <div class="nav-item" onclick="navigate('install')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Installation Page
+    </div>
     <div class="nav-item" onclick="navigate('settings')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Settings
@@ -629,11 +633,6 @@ self.addEventListener("notificationclick", (event) => {
           </div>
         </div>
 
-        <div style="margin-top:1rem">
-          <div class="label">Description <span style="color:var(--muted);font-weight:400">(shown on the install page)</span></div>
-          <textarea id="pwa-description" rows="3" placeholder="A short description of your app…" style="width:100%;resize:vertical"></textarea>
-        </div>
-
         <div style="margin-top:1.25rem;display:flex;gap:.5rem;align-items:center">
           <button class="btn" onclick="savePwaConfig()">Save Manifest</button>
           <span id="pwa-save-status" style="font-size:.78rem;color:var(--text-dim)"></span>
@@ -669,20 +668,67 @@ self.addEventListener("notificationclick", (event) => {
         </p>
       </div>
 
+    </div>
+
+    <!-- Installation Page -->
+    <div class="section" id="section-install">
+
+      <!-- Project selector -->
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="label">Project</div>
+        <select id="install-project" onchange="renderInstallPage()" style="width:100%"></select>
+      </div>
+
+      <!-- Install URL display -->
+      <div class="card" id="install-url-card" style="display:none;margin-bottom:1.25rem">
+        <div class="card-header">
+          <span class="card-title">Install Page URL</span>
+          <a id="install-page-open" href="#" target="_blank" class="btn btn-ghost" style="font-size:.75rem">Open ↗</a>
+        </div>
+        <div class="api-key" id="install-page-url" onclick="copyText(this)" style="word-break:break-all"></div>
+        <p style="font-size:.78rem;color:var(--text-dim);margin-top:.6rem">Share this link — users can install your PWA from any browser or device.</p>
+      </div>
+
+      <!-- Config form -->
+      <div class="card" id="install-config-card" style="display:none;margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">Page Settings</span></div>
+
+        <div style="margin-bottom:1rem">
+          <div class="label">Custom Slug <span style="color:var(--muted);font-weight:400">(optional — friendly URL path)</span></div>
+          <input type="text" id="install-slug" placeholder="my-app" style="width:100%" pattern="[a-z0-9-]+" />
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Lowercase letters, numbers, hyphens. E.g. <code>my-app</code> → <code>/install/my-app</code></div>
+        </div>
+
+        <div style="margin-bottom:1rem">
+          <div class="label">Description <span style="color:var(--muted);font-weight:400">(shown below the app name)</span></div>
+          <textarea id="install-description" rows="3" placeholder="A short description of your app…" style="width:100%;resize:vertical"></textarea>
+        </div>
+
+        <div style="margin-bottom:1.25rem">
+          <div class="label">YouTube URL <span style="color:var(--muted);font-weight:400">(optional — embeds a preview video)</span></div>
+          <input type="text" id="install-youtube-url" placeholder="https://www.youtube.com/watch?v=…" style="width:100%" />
+        </div>
+
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <button class="btn" onclick="saveInstallConfig()">Save</button>
+          <span id="install-save-status" style="font-size:.78rem;color:var(--text-dim)"></span>
+        </div>
+      </div>
+
       <!-- Screenshots -->
-      <div class="card" id="pwa-screenshots-card" style="display:none">
+      <div class="card" id="install-screenshots-card" style="display:none">
         <div class="card-header">
           <span class="card-title">Screenshots</span>
           <label class="btn" style="font-size:.75rem;cursor:pointer">
             Upload
-            <input type="file" id="screenshot-upload-input" accept="image/*" style="display:none" onchange="uploadScreenshot(this)">
+            <input type="file" id="install-screenshot-input" accept="image/*" style="display:none" onchange="uploadInstallScreenshot(this)">
           </label>
         </div>
         <p style="font-size:.78rem;color:var(--text-dim);margin-bottom:.75rem">
-          Add up to 6 screenshots. Wide images (landscape) get <code>form_factor: wide</code>; tall images get <code>narrow</code>. Both appear in the Chrome install dialog and your install page.
+          Add up to 6 screenshots. Wide images (landscape) get <code>form_factor: wide</code>; tall images get <code>narrow</code>. Shown on this page and in the Chrome install dialog.
         </p>
-        <div id="pwa-screenshots-gallery" style="display:flex;flex-wrap:wrap;gap:.75rem"></div>
-        <div id="pwa-screenshots-empty" style="font-size:.82rem;color:var(--muted)">No screenshots yet.</div>
+        <div id="install-screenshots-gallery" style="display:flex;flex-wrap:wrap;gap:.75rem"></div>
+        <div id="install-screenshots-empty" style="font-size:.82rem;color:var(--muted)">No screenshots yet.</div>
       </div>
 
     </div>
@@ -724,6 +770,7 @@ self.addEventListener("notificationclick", (event) => {
     integrate: { title: 'Integration Guide',  sub: 'Connect your apps to this service' },
     widgets:   { title: 'UI Components',      sub: 'Drop-in widgets for your site' },
     pwa:       { title: 'PWA Setup',          sub: 'Make your app installable on any device' },
+    install:   { title: 'Installation Page',  sub: 'Shareable install link for any browser or device' },
     settings:  { title: 'Settings',           sub: 'VAPID keys and service info' },
   };
 
@@ -773,6 +820,7 @@ self.addEventListener("notificationclick", (event) => {
     if (page === 'integrate') renderIntegrationGuide();
     if (page === 'widgets') renderWidgets();
     if (page === 'pwa') renderPwaSetup();
+    if (page === 'install') renderInstallPage();
     if (page === 'settings') renderSettings();
     if (page === 'history') loadHistory();
   }
@@ -960,7 +1008,7 @@ self.addEventListener("notificationclick", (event) => {
   // ── Send ──────────────────────────────────────────────────────
 
   function populateProjectSelects() {
-    ['send-project', 'history-project', 'widgets-project', 'pwa-project'].forEach(id => {
+    ['send-project', 'history-project', 'widgets-project', 'pwa-project', 'install-project'].forEach(id => {
       const sel = document.getElementById(id);
       const current = sel.value;
       sel.innerHTML = projects.map(p => `<option value="${p.id}" data-key="${p.apiKey}">${p.name}</option>`).join('');
@@ -1189,7 +1237,6 @@ await fetch("${BASE}/notify", {
     document.getElementById('pwa-bg-color').value          = bc;
     document.getElementById('pwa-bg-color-text').value     = bc;
     document.getElementById('pwa-display').value = p.pwaDisplay || 'standalone';
-    document.getElementById('pwa-description').value = p.pwaDescription || '';
 
     // Snippet + manifest URL
     var manifestUrl = BASE + '/pwa/manifest.json?key=' + p.apiKey;
@@ -1211,7 +1258,7 @@ await fetch("${BASE}/notify", {
     document.getElementById('pwa-head-snippet').textContent = snippet.join('\n');
     document.getElementById('pwa-manifest-url').textContent = manifestUrl;
     document.getElementById('pwa-manifest-url').dataset.val = manifestUrl;
-    var installUrl = BASE + '/install/' + p.id;
+    var installUrl = BASE + '/install/' + (p.installSlug || p.id);
     document.getElementById('pwa-install-url').textContent = installUrl;
     document.getElementById('pwa-install-url').dataset.val = installUrl;
     document.getElementById('pwa-snippet-card').style.display = 'block';
@@ -1235,9 +1282,6 @@ await fetch("${BASE}/notify", {
     document.getElementById('pwa-icon-card').style.display = 'block';
 
     // Screenshots
-    document.getElementById('pwa-screenshots-card').style.display = 'block';
-    document.getElementById('pwa-screenshots-card').dataset.projectId = p.id;
-    loadPwaScreenshots(p.id);
   }
 
   function pwaColorSync(which) {
@@ -1267,7 +1311,6 @@ await fetch("${BASE}/notify", {
       pwaThemeColor:  document.getElementById('pwa-theme-color-text').value.trim() || null,
       pwaBgColor:     document.getElementById('pwa-bg-color-text').value.trim() || null,
       pwaDisplay:     document.getElementById('pwa-display').value || null,
-      pwaDescription: document.getElementById('pwa-description').value.trim() || null,
     };
 
     var res = await fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {
@@ -1294,9 +1337,72 @@ await fetch("${BASE}/notify", {
     if (pre) { navigator.clipboard.writeText(pre.textContent); toast('Copied!'); }
   }
 
-  async function loadPwaScreenshots(projectId) {
-    var gallery = document.getElementById('pwa-screenshots-gallery');
-    var empty   = document.getElementById('pwa-screenshots-empty');
+  // ── Installation Page ─────────────────────────────────────────
+
+  function renderInstallPage() {
+    var sel = document.getElementById('install-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt) return;
+    var p = projects.find(function(x) { return x.id === opt.value; });
+    if (!p) return;
+
+    var installUrl = BASE + '/install/' + (p.installSlug || p.id);
+    var urlEl = document.getElementById('install-page-url');
+    urlEl.textContent = installUrl;
+    urlEl.dataset.val = installUrl;
+    document.getElementById('install-page-open').href = installUrl;
+    document.getElementById('install-url-card').style.display = 'block';
+
+    document.getElementById('install-slug').value        = p.installSlug    || '';
+    document.getElementById('install-description').value = p.pwaDescription || '';
+    document.getElementById('install-youtube-url').value = p.pwaYoutubeUrl  || '';
+    document.getElementById('install-config-card').style.display = 'block';
+
+    document.getElementById('install-screenshots-card').style.display = 'block';
+    document.getElementById('install-screenshots-card').dataset.projectId = p.id;
+    loadInstallScreenshots(p.id);
+  }
+
+  async function saveInstallConfig() {
+    var sel = document.getElementById('install-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt) return;
+
+    var status = document.getElementById('install-save-status');
+    status.textContent = 'Saving…';
+
+    var slugVal = document.getElementById('install-slug').value.trim().toLowerCase();
+    var body = {
+      pwaDescription: document.getElementById('install-description').value.trim() || null,
+      pwaYoutubeUrl:  document.getElementById('install-youtube-url').value.trim() || null,
+      installSlug:    slugVal || null,
+    };
+
+    var res = await fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      var err = await res.json().catch(function(){ return {}; });
+      status.textContent = err.message || 'Save failed';
+      return;
+    }
+
+    var updated = await res.json();
+    var idx = projects.findIndex(function(p) { return p.id === updated.id; });
+    if (idx !== -1) projects[idx] = updated;
+
+    status.textContent = 'Saved!';
+    setTimeout(function() { status.textContent = ''; }, 2500);
+    renderInstallPage(); // refresh URL if slug changed
+    toast('Installation page saved');
+  }
+
+  async function loadInstallScreenshots(projectId) {
+    var gallery = document.getElementById('install-screenshots-gallery');
+    var empty   = document.getElementById('install-screenshots-empty');
     if (!gallery) return;
 
     var res = await fetch(BASE + '/admin/projects/' + projectId + '/screenshots', {
@@ -1317,7 +1423,7 @@ await fetch("${BASE}/notify", {
       return '<div style="position:relative;display:inline-flex;flex-direction:column;gap:.35rem;align-items:center">' +
         '<div style="position:relative">' +
           '<img src="' + BASE + '/pwa/screenshot/' + s.id + '.png" style="height:120px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block" />' +
-          '<button onclick="deletePwaScreenshot(\'' + s.id + '\',\'' + projectId + '\')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
+          '<button onclick="deleteInstallScreenshot(\'' + s.id + '\',\'' + projectId + '\')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
         '</div>' +
         '<span style="font-size:.65rem;color:var(--muted)">' + s.width + '×' + s.height + ' · ' + badge + '</span>' +
         (s.label ? '<span style="font-size:.65rem;color:var(--text-dim)">' + s.label + '</span>' : '') +
@@ -1325,8 +1431,8 @@ await fetch("${BASE}/notify", {
     }).join('');
   }
 
-  async function uploadScreenshot(input) {
-    var card = document.getElementById('pwa-screenshots-card');
+  async function uploadInstallScreenshot(input) {
+    var card = document.getElementById('install-screenshots-card');
     var projectId = card && card.dataset.projectId;
     if (!projectId || !input.files[0]) return;
 
@@ -1347,16 +1453,16 @@ await fetch("${BASE}/notify", {
     }
 
     toast('Screenshot uploaded');
-    loadPwaScreenshots(projectId);
+    loadInstallScreenshots(projectId);
   }
 
-  async function deletePwaScreenshot(id, projectId) {
+  async function deleteInstallScreenshot(id, projectId) {
     var res = await fetch(BASE + '/admin/screenshots/' + id, {
       method: 'DELETE',
       headers: { 'x-admin-key': ADMIN_KEY },
     });
     if (!res.ok) { toast('Delete failed'); return; }
-    loadPwaScreenshots(projectId);
+    loadInstallScreenshots(projectId);
   }
 
   // ── UI Components / Widgets ───────────────────────────────────
