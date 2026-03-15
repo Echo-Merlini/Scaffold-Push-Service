@@ -26,6 +26,7 @@ export async function updateProjectPwa(id: string, pwa: {
   pwaThemeColor: string | null;
   pwaBgColor: string | null;
   pwaDisplay: string | null;
+  pwaUrl?: string | null;
 }) {
   const [updated] = await db
     .update(projects)

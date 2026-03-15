@@ -589,6 +589,11 @@ self.addEventListener("notificationclick", (event) => {
       <div class="card" id="pwa-config-card">
         <div class="card-header"><span class="card-title">Manifest Settings</span></div>
 
+        <div style="margin-bottom:1rem">
+          <div class="label">App URL <span style="color:var(--muted);font-weight:400">(production origin — fixes start_url)</span></div>
+          <input type="text" id="pwa-url" placeholder="https://myapp.com" style="width:100%" />
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
           <div>
             <div class="label">App Name <span style="color:var(--muted);font-weight:400">(full name)</span></div>
@@ -1065,6 +1070,7 @@ await fetch("${BASE}/notify", {
     if (!p) return;
 
     // Fill form with saved values (fall back to sensible defaults)
+    document.getElementById('pwa-url').value         = p.pwaUrl        || '';
     document.getElementById('pwa-name').value        = p.pwaName       || p.name || '';
     document.getElementById('pwa-short-name').value  = p.pwaShortName  || (p.name || '').slice(0, 12);
     var tc = p.pwaThemeColor || '#000000';
@@ -1137,6 +1143,7 @@ await fetch("${BASE}/notify", {
     status.textContent = 'Saving…';
 
     var body = {
+      pwaUrl:        document.getElementById('pwa-url').value.trim() || null,
       pwaName:       document.getElementById('pwa-name').value.trim() || null,
       pwaShortName:  document.getElementById('pwa-short-name').value.trim() || null,
       pwaThemeColor: document.getElementById('pwa-theme-color-text').value.trim() || null,

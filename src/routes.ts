@@ -73,6 +73,7 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
     pwaThemeColor: z.string().nullable(),
     pwaBgColor: z.string().nullable(),
     pwaDisplay: z.enum(["standalone", "fullscreen", "minimal-ui", "browser"]).nullable(),
+    pwaUrl: z.string().url().nullable(),
   });
   const pwa = schema.parse(req.body);
   const project = await updateProjectPwa(req.params.id, pwa);
@@ -91,14 +92,29 @@ router.get("/pwa/manifest.json", async (req, res) => {
 
   const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
   const base = `${proto}://${req.get("host")}`;
-  const icons: object[] = [];
-  if (project.logo)    icons.push({ src: `${base}/pwa/icon/${project.id}/192.png`, sizes: "192x192", type: "image/png" });
-  if (project.logo512) icons.push({ src: `${base}/pwa/icon/${project.id}/512.png`, sizes: "512x512", type: "image/png", purpose: "any maskable" });
 
+  // start_url must be same-origin as the app, not the push service
+  const appOrigin = (project as any).pwaUrl?.replace(/\/$/, "") || null;
+  const startUrl = appOrigin ? `${appOrigin}/` : "/";
+  const scope    = appOrigin ? `${appOrigin}/` : "/";
+
+  const icons: object[] = [];
+  if (project.logo) {
+    icons.push({ src: `${base}/pwa/icon/${project.id}/192.png`, sizes: "192x192", type: "image/png", purpose: "any" });
+  }
+  if (project.logo512) {
+    icons.push({ src: `${base}/pwa/icon/${project.id}/512.png`, sizes: "512x512", type: "image/png", purpose: "any" });
+    icons.push({ src: `${base}/pwa/icon/${project.id}/512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" });
+  }
+
+  const appName     = project.pwaName      || project.name;
+  const appShort    = project.pwaShortName || project.name.slice(0, 12);
   const manifest = {
-    name:             project.pwaName       || project.name,
-    short_name:       project.pwaShortName  || project.name.slice(0, 12),
-    start_url:        "/",
+    id:               startUrl,
+    name:             appName,
+    short_name:       appShort,
+    start_url:        startUrl,
+    scope:            scope,
     display:          project.pwaDisplay    || "standalone",
     theme_color:      project.pwaThemeColor || "#000000",
     background_color: project.pwaBgColor    || "#ffffff",

@@ -14,6 +14,7 @@ export const projects = pgTable("projects", {
   pwaThemeColor: text("pwa_theme_color"),
   pwaBgColor: text("pwa_bg_color"),
   pwaDisplay: text("pwa_display"),       // standalone | fullscreen | minimal-ui | browser
+  pwaUrl: text("pwa_url"),              // production URL e.g. https://myapp.com
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -17,7 +17,8 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS pwa_short_name TEXT,
       ADD COLUMN IF NOT EXISTS pwa_theme_color TEXT,
       ADD COLUMN IF NOT EXISTS pwa_bg_color TEXT,
-      ADD COLUMN IF NOT EXISTS pwa_display TEXT
+      ADD COLUMN IF NOT EXISTS pwa_display TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_url TEXT
   `);
 }
 
