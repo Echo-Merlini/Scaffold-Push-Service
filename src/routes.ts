@@ -264,6 +264,9 @@ router.get("/widgets.js", async (req, res) => {
   /* ── Bell Widget ── */
   function mountBell(){
     var isIos=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!(window as any).MSStream;
+    // iPadOS 13+ spoofs macOS desktop Safari UA — detect via touch points
+    var isIpadOs=/macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1;
+    isIos=isIos||isIpadOs;
     var isStandalone=(navigator as any).standalone===true||window.matchMedia('(display-mode:standalone)').matches;
     var pushSupported='serviceWorker' in navigator && 'PushManager' in window;
 
