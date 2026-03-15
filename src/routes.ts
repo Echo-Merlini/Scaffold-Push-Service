@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireApiKey, requireAdminKey } from "./middleware/auth.js";
 import {
   createProject, listProjects, deleteProject, updateProjectLogo,
-  getProjectById, updateProjectPwa,
+  getProjectByApiKey, getProjectById, updateProjectPwa,
   upsertSubscription, removeSubscription, getSubscriptionsForProject,
   logNotification, getNotificationHistory,
 } from "./storage.js";
