@@ -921,25 +921,26 @@ self.addEventListener("notificationclick", (event) => {
         <div class="label">Logo — auto-used as notification icon</div>
         <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
           ${p.logo ? `
-            <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">
-              <img src="${p.logo}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" title="192×192" />
-              <span style="font-size:.65rem;color:var(--muted)">192×192</span>
-            </div>
-            ${p.logo512 ? `
-            <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">
-              <img src="${p.logo512}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" title="512×512" />
-              <span style="font-size:.65rem;color:var(--muted)">512×512</span>
-            </div>` : ''}
-            ${p.logoBadge ? `
-            <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">
-              <img src="${p.logoBadge}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;border:1px solid var(--border)" title="96×96" />
-              <span style="font-size:.65rem;color:var(--muted)">96×96</span>
-            </div>` : ''}
+            ${[
+              { label: '192×192', url: `${BASE}/pwa/icon/${p.id}/192.png`, size: 48 },
+              { label: '512×512', url: `${BASE}/pwa/icon/${p.id}/512.png`, size: 48 },
+              { label: '96×96',   url: `${BASE}/pwa/icon/${p.id}/96.png`,  size: 32 },
+              { label: 'SVG',     url: `${BASE}/pwa/icon/${p.id}/icon.svg`, size: 48 },
+              { label: '.ico',    url: `${BASE}/pwa/icon/${p.id}/favicon.ico`, size: 32 },
+            ].map(ic => `
+              <div style="display:flex;flex-direction:column;gap:.35rem;align-items:center;min-width:60px">
+                <a href="${ic.url}" target="_blank" title="Open ${ic.label}">
+                  <img src="${p.logo}" style="width:${ic.size}px;height:${ic.size}px;border-radius:6px;object-fit:cover;border:1px solid var(--border);display:block" />
+                </a>
+                <span style="font-size:.62rem;color:var(--muted)">${ic.label}</span>
+                <button class="btn btn-ghost" style="padding:.15rem .4rem;font-size:.65rem" onclick="navigator.clipboard.writeText('${ic.url}').then(()=>toast('URL copied'))">Copy URL</button>
+              </div>
+            `).join('')}
           ` : '<div style="width:64px;height:64px;border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.7rem">No logo</div>'}
         </div>
         <div style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem;flex-wrap:wrap">
           <label style="cursor:pointer">
-            <input type="file" id="logo-file-${p.id}" accept="image/*" style="display:none" onchange="uploadLogo('${p.id}')" />
+            <input type="file" id="logo-file-${p.id}" accept="image/*,.svg" style="display:none" onchange="uploadLogo('${p.id}')" />
             <span class="btn btn-ghost" onclick="document.getElementById('logo-file-${p.id}').click()">Upload image</span>
           </label>
           <span style="font-size:.72rem;color:var(--muted)">or</span>
@@ -947,7 +948,7 @@ self.addEventListener("notificationclick", (event) => {
           <button class="btn btn-ghost" onclick="saveLogo('${p.id}')">Save URL</button>
           ${p.logo ? `<button class="btn btn-danger" onclick="removeLogo('${p.id}')">Remove</button>` : ''}
         </div>
-        <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Max 5MB · Auto-resized to 192×192, 512×512, 96×96</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Max 5MB · PNG/JPG/SVG · Auto-resized to 192×192, 512×512, 96×96 + .ico + .svg</div>
         <div style="display:flex;gap:.5rem;margin-top:1rem">
           <button class="btn btn-ghost" onclick="navigate('send');document.getElementById('send-project').value='${p.id}'">Send notification</button>
           <button class="btn btn-danger" onclick="deleteProject('${p.id}','${p.name}')">Delete</button>

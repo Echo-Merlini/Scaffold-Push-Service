@@ -263,7 +263,13 @@ router.get("/widgets.js", async (req, res) => {
 
   /* ── Bell Widget ── */
   function mountBell(){
-    if(!('serviceWorker' in navigator && 'PushManager' in window))return;
+    var isIos=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!(window as any).MSStream;
+    var isStandalone=(navigator as any).standalone===true||window.matchMedia('(display-mode:standalone)').matches;
+    var pushSupported='serviceWorker' in navigator && 'PushManager' in window;
+
+    // On iOS, push only works in installed PWA (standalone mode) — iOS 16.4+
+    // Show the bell even in browser so we can guide users to install
+    if(!pushSupported && !isIos)return;
 
     var wrap=mkEl('div',null,{position:'fixed',bottom:'24px',right:'24px',zIndex:'999999',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'8px',fontFamily:'system-ui,-apple-system,sans-serif'});
 
@@ -282,6 +288,26 @@ router.get("/widgets.js", async (req, res) => {
     btn.innerHTML='&#x1F515;';
     btn.onmouseenter=function(){btn.style.transform='scale(1.1)';};
     btn.onmouseleave=function(){btn.style.transform='scale(1)';};
+
+    // iOS in browser — can't subscribe, show install instructions instead
+    if(isIos && !isStandalone){
+      btn.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
+      panel.style.flexDirection='column';
+      panelBody.innerHTML=
+        '<p style="color:#aaa;font-size:12px;margin-bottom:10px;line-height:1.5">To receive push notifications on iOS, install this app to your Home Screen first.</p>'+
+        '<ol style="color:#888;font-size:11px;line-height:1.8;padding-left:1.1rem;margin-bottom:10px">'+
+        '<li>Tap the <strong style="color:#aaa">Share</strong> button (&#x2B06; box with arrow) in Safari</li>'+
+        '<li>Tap <strong style="color:#aaa">Add to Home Screen</strong></li>'+
+        '<li>Open the app from your Home Screen</li>'+
+        '<li>Tap the bell to enable notifications</li>'+
+        '</ol>'+
+        '<p style="color:#555;font-size:11px">Requires iOS 16.4 or later.</p>';
+      wrap.append(panel,btn);
+      document.body.append(wrap);
+      return;
+    }
+
+    if(!pushSupported)return;
 
     var subbed=false;
 
