@@ -628,6 +628,11 @@ self.addEventListener("notificationclick", (event) => {
           </div>
         </div>
 
+        <div style="margin-top:1rem">
+          <div class="label">Description <span style="color:var(--muted);font-weight:400">(shown on the install page)</span></div>
+          <textarea id="pwa-description" rows="3" placeholder="A short description of your app…" style="width:100%;resize:vertical"></textarea>
+        </div>
+
         <div style="margin-top:1.25rem;display:flex;gap:.5rem;align-items:center">
           <button class="btn" onclick="savePwaConfig()">Save Manifest</button>
           <span id="pwa-save-status" style="font-size:.78rem;color:var(--text-dim)"></span>
@@ -648,6 +653,10 @@ self.addEventListener("notificationclick", (event) => {
           <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">Manifest URL (direct link)</div>
           <div class="api-key" id="pwa-manifest-url" onclick="copyText(this)" style="word-break:break-all"></div>
         </div>
+        <div style="margin-top:.75rem;padding:.85rem;background:#0a0a0a;border:1px solid var(--border);border-radius:6px">
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:.4rem">Install Page — shareable app-store-style link</div>
+          <div class="api-key" id="pwa-install-url" onclick="copyText(this)" style="word-break:break-all"></div>
+        </div>
       </div>
 
       <!-- Icon status -->
@@ -657,6 +666,22 @@ self.addEventListener("notificationclick", (event) => {
         <p style="font-size:.78rem;color:var(--text-dim);margin-top:.75rem">
           Icons are served from <code>/pwa/icon/&lt;projectId&gt;/192.png</code> — update them anytime in the Projects tab.
         </p>
+      </div>
+
+      <!-- Screenshots -->
+      <div class="card" id="pwa-screenshots-card" style="display:none">
+        <div class="card-header">
+          <span class="card-title">Screenshots</span>
+          <label class="btn" style="font-size:.75rem;cursor:pointer">
+            Upload
+            <input type="file" id="screenshot-upload-input" accept="image/*" style="display:none" onchange="uploadScreenshot(this)">
+          </label>
+        </div>
+        <p style="font-size:.78rem;color:var(--text-dim);margin-bottom:.75rem">
+          Add up to 6 screenshots. Wide images (landscape) get <code>form_factor: wide</code>; tall images get <code>narrow</code>. Both appear in the Chrome install dialog and your install page.
+        </p>
+        <div id="pwa-screenshots-gallery" style="display:flex;flex-wrap:wrap;gap:.75rem"></div>
+        <div id="pwa-screenshots-empty" style="font-size:.82rem;color:var(--muted)">No screenshots yet.</div>
       </div>
 
     </div>
@@ -1080,6 +1105,7 @@ await fetch("${BASE}/notify", {
     document.getElementById('pwa-bg-color').value          = bc;
     document.getElementById('pwa-bg-color-text').value     = bc;
     document.getElementById('pwa-display').value = p.pwaDisplay || 'standalone';
+    document.getElementById('pwa-description').value = p.pwaDescription || '';
 
     // Snippet + manifest URL
     var manifestUrl = BASE + '/pwa/manifest.json?key=' + p.apiKey;
@@ -1101,6 +1127,9 @@ await fetch("${BASE}/notify", {
     document.getElementById('pwa-head-snippet').textContent = snippet.join('\n');
     document.getElementById('pwa-manifest-url').textContent = manifestUrl;
     document.getElementById('pwa-manifest-url').dataset.val = manifestUrl;
+    var installUrl = BASE + '/install/' + p.id;
+    document.getElementById('pwa-install-url').textContent = installUrl;
+    document.getElementById('pwa-install-url').dataset.val = installUrl;
     document.getElementById('pwa-snippet-card').style.display = 'block';
 
     // Icon preview
@@ -1120,6 +1149,11 @@ await fetch("${BASE}/notify", {
     }
     document.getElementById('pwa-icon-preview').innerHTML = iconHtml;
     document.getElementById('pwa-icon-card').style.display = 'block';
+
+    // Screenshots
+    document.getElementById('pwa-screenshots-card').style.display = 'block';
+    document.getElementById('pwa-screenshots-card').dataset.projectId = p.id;
+    loadPwaScreenshots(p.id);
   }
 
   function pwaColorSync(which) {
@@ -1143,12 +1177,13 @@ await fetch("${BASE}/notify", {
     status.textContent = 'Saving…';
 
     var body = {
-      pwaUrl:        document.getElementById('pwa-url').value.trim() || null,
-      pwaName:       document.getElementById('pwa-name').value.trim() || null,
-      pwaShortName:  document.getElementById('pwa-short-name').value.trim() || null,
-      pwaThemeColor: document.getElementById('pwa-theme-color-text').value.trim() || null,
-      pwaBgColor:    document.getElementById('pwa-bg-color-text').value.trim() || null,
-      pwaDisplay:    document.getElementById('pwa-display').value || null,
+      pwaUrl:         document.getElementById('pwa-url').value.trim() || null,
+      pwaName:        document.getElementById('pwa-name').value.trim() || null,
+      pwaShortName:   document.getElementById('pwa-short-name').value.trim() || null,
+      pwaThemeColor:  document.getElementById('pwa-theme-color-text').value.trim() || null,
+      pwaBgColor:     document.getElementById('pwa-bg-color-text').value.trim() || null,
+      pwaDisplay:     document.getElementById('pwa-display').value || null,
+      pwaDescription: document.getElementById('pwa-description').value.trim() || null,
     };
 
     var res = await fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {
@@ -1173,6 +1208,71 @@ await fetch("${BASE}/notify", {
   function copyPwaSnippet() {
     var pre = document.getElementById('pwa-head-snippet');
     if (pre) { navigator.clipboard.writeText(pre.textContent); toast('Copied!'); }
+  }
+
+  async function loadPwaScreenshots(projectId) {
+    var gallery = document.getElementById('pwa-screenshots-gallery');
+    var empty   = document.getElementById('pwa-screenshots-empty');
+    if (!gallery) return;
+
+    var res = await fetch(BASE + '/admin/projects/' + projectId + '/screenshots', {
+      headers: { 'x-admin-key': ADMIN_KEY }
+    });
+    if (!res.ok) return;
+    var shots = await res.json();
+
+    if (!shots.length) {
+      gallery.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+    gallery.innerHTML = shots.map(function(s) {
+      var badge = s.formFactor === 'wide' ? 'wide' : 'narrow';
+      return '<div style="position:relative;display:inline-flex;flex-direction:column;gap:.35rem;align-items:center">' +
+        '<div style="position:relative">' +
+          '<img src="' + BASE + '/pwa/screenshot/' + s.id + '.png" style="height:120px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block" />' +
+          '<button onclick="deletePwaScreenshot(\'' + s.id + '\',\'' + projectId + '\')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">✕</button>' +
+        '</div>' +
+        '<span style="font-size:.65rem;color:var(--muted)">' + s.width + '×' + s.height + ' · ' + badge + '</span>' +
+        (s.label ? '<span style="font-size:.65rem;color:var(--text-dim)">' + s.label + '</span>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  async function uploadScreenshot(input) {
+    var card = document.getElementById('pwa-screenshots-card');
+    var projectId = card && card.dataset.projectId;
+    if (!projectId || !input.files[0]) return;
+
+    var formData = new FormData();
+    formData.append('screenshot', input.files[0]);
+    input.value = '';
+
+    var res = await fetch(BASE + '/admin/projects/' + projectId + '/screenshots', {
+      method: 'POST',
+      headers: { 'x-admin-key': ADMIN_KEY },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      var err = await res.json().catch(function(){ return { error: 'Upload failed' }; });
+      toast(err.error || 'Upload failed');
+      return;
+    }
+
+    toast('Screenshot uploaded');
+    loadPwaScreenshots(projectId);
+  }
+
+  async function deletePwaScreenshot(id, projectId) {
+    var res = await fetch(BASE + '/admin/screenshots/' + id, {
+      method: 'DELETE',
+      headers: { 'x-admin-key': ADMIN_KEY },
+    });
+    if (!res.ok) { toast('Delete failed'); return; }
+    loadPwaScreenshots(projectId);
   }
 
   // ── UI Components / Widgets ───────────────────────────────────

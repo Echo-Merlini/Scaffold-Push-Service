@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "./db.js";
-import { projects, subscriptions, notificationLog } from "./schema.js";
+import { projects, subscriptions, notificationLog, screenshots } from "./schema.js";
 
 // --- Projects ---
 
@@ -21,12 +21,13 @@ export async function getProjectById(id: string) {
 }
 
 export async function updateProjectPwa(id: string, pwa: {
-  pwaName: string | null;
-  pwaShortName: string | null;
-  pwaThemeColor: string | null;
-  pwaBgColor: string | null;
-  pwaDisplay: string | null;
+  pwaName?: string | null;
+  pwaShortName?: string | null;
+  pwaThemeColor?: string | null;
+  pwaBgColor?: string | null;
+  pwaDisplay?: string | null;
   pwaUrl?: string | null;
+  pwaDescription?: string | null;
 }) {
   const [updated] = await db
     .update(projects)
@@ -55,6 +56,36 @@ export async function updateProjectLogo(id: string, logos: {
     .where(eq(projects.id, id))
     .returning();
   return updated;
+}
+
+// --- Screenshots ---
+
+export async function addScreenshot(data: {
+  projectId: string;
+  data: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  formFactor: string;
+  label?: string;
+}) {
+  const [s] = await db.insert(screenshots).values({ id: nanoid(), ...data }).returning();
+  return s;
+}
+
+export async function deleteScreenshot(id: string) {
+  await db.delete(screenshots).where(eq(screenshots.id, id));
+}
+
+export async function getScreenshotsForProject(projectId: string) {
+  return db.query.screenshots.findMany({
+    where: eq(screenshots.projectId, projectId),
+    orderBy: (t, { asc }) => [asc(t.createdAt)],
+  });
+}
+
+export async function getScreenshotById(id: string) {
+  return db.query.screenshots.findFirst({ where: eq(screenshots.id, id) });
 }
 
 // --- Subscriptions ---

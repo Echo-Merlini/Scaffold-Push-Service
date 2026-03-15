@@ -18,7 +18,21 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS pwa_theme_color TEXT,
       ADD COLUMN IF NOT EXISTS pwa_bg_color TEXT,
       ADD COLUMN IF NOT EXISTS pwa_display TEXT,
-      ADD COLUMN IF NOT EXISTS pwa_url TEXT
+      ADD COLUMN IF NOT EXISTS pwa_url TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_description TEXT
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS screenshots (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      data TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      width INTEGER NOT NULL,
+      height INTEGER NOT NULL,
+      form_factor TEXT NOT NULL DEFAULT 'narrow',
+      label TEXT,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
   `);
 }
 

@@ -15,6 +15,20 @@ export const projects = pgTable("projects", {
   pwaBgColor: text("pwa_bg_color"),
   pwaDisplay: text("pwa_display"),       // standalone | fullscreen | minimal-ui | browser
   pwaUrl: text("pwa_url"),              // production URL e.g. https://myapp.com
+  pwaDescription: text("pwa_description"), // shown on the install page
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Screenshots for PWA manifest + installation page
+export const screenshots = pgTable("screenshots", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  data: text("data").notNull(),              // base64 data URL
+  mimeType: text("mime_type").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  formFactor: text("form_factor").notNull(), // wide | narrow
+  label: text("label"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
