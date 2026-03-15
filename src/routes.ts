@@ -624,10 +624,14 @@ router.post("/notify", requireApiKey, async (req, res) => {
   const project = (req as any).project;
   const payload = notifySchema.parse(req.body);
 
-  // Auto-attach project logo as icon if not overridden
+  // Use hosted icon URL (not base64 data URL — push payload must be < 4096 bytes)
+  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+  const base  = `${proto}://${req.get("host")}`;
+  const iconUrl = project.logo ? `${base}/pwa/icon/${project.id}/192.png` : undefined;
+
   const finalPayload = {
     ...payload,
-    icon: payload.icon ?? project.logo ?? undefined,
+    icon: payload.icon ?? iconUrl,
   };
 
   const subs = await getSubscriptionsForProject(project.id);
