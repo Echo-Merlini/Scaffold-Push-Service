@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Push Service Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f0f0f;
+      color: #e5e5e5;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: .02em; }
+    header span { font-size: .8rem; color: #666; }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 2rem; }
+
+    /* Auth screen */
+    #auth-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      gap: 1rem;
+    }
+
+    #auth-screen h2 { font-size: 1.2rem; color: #aaa; }
+
+    /* Cards */
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: .75rem;
+    }
+
+    .card-title { font-weight: 600; font-size: .95rem; }
+    .badge {
+      font-size: .7rem;
+      background: #2a2a2a;
+      color: #888;
+      padding: .2rem .5rem;
+      border-radius: 4px;
+    }
+
+    /* Forms */
+    .form-row {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    input[type="text"], input[type="password"] {
+      flex: 1;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      color: #e5e5e5;
+      padding: .6rem .9rem;
+      font-size: .9rem;
+      outline: none;
+    }
+
+    input:focus { border-color: #555; }
+
+    button {
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: .6rem 1.1rem;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button:hover { background: #ddd; }
+
+    button.danger {
+      background: transparent;
+      color: #e55;
+      border: 1px solid #e55;
+    }
+
+    button.danger:hover { background: #e5522220; }
+
+    button.secondary {
+      background: transparent;
+      color: #aaa;
+      border: 1px solid #333;
+    }
+
+    button.secondary:hover { background: #222; color: #fff; }
+
+    /* API key display */
+    .api-key {
+      font-family: monospace;
+      font-size: .8rem;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      padding: .4rem .7rem;
+      color: #7adb78;
+      word-break: break-all;
+      cursor: pointer;
+      user-select: all;
+    }
+
+    .api-key:hover { border-color: #444; }
+
+    .label {
+      font-size: .75rem;
+      color: #666;
+      margin-bottom: .35rem;
+    }
+
+    .meta {
+      font-size: .8rem;
+      color: #555;
+      margin-top: .5rem;
+    }
+
+    /* Notify panel */
+    .notify-form { display: none; margin-top: 1rem; border-top: 1px solid #2a2a2a; padding-top: 1rem; }
+    .notify-form.open { display: block; }
+    .notify-form input { width: 100%; margin-bottom: .5rem; }
+
+    /* History */
+    .history-list { margin-top: .75rem; }
+    .history-item {
+      font-size: .8rem;
+      color: #888;
+      padding: .35rem 0;
+      border-bottom: 1px solid #1f1f1f;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      font-size: .85rem;
+      opacity: 0;
+      transition: opacity .2s;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; }
+
+    #main-screen { display: none; }
+
+    section-title {
+      display: block;
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #555;
+      margin-bottom: 1rem;
+    }
+
+    .empty { color: #555; font-size: .9rem; text-align: center; padding: 2rem 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Push Service</h1>
+  <span id="header-status"></span>
+</header>
+
+<!-- Auth Screen -->
+<div id="auth-screen" class="container">
+  <h2>Enter Admin Key</h2>
+  <div class="form-row" style="width:100%;max-width:420px">
+    <input type="password" id="admin-key-input" placeholder="Admin key" />
+    <button onclick="login()">Sign in</button>
+  </div>
+</div>
+
+<!-- Main Screen -->
+<div id="main-screen">
+  <div class="container">
+
+    <section-title>Projects</section-title>
+
+    <!-- Create project -->
+    <div class="form-row">
+      <input type="text" id="new-project-name" placeholder="New project name (e.g. GobLanding)" />
+      <button onclick="createProject()">Create</button>
+    </div>
+
+    <!-- Project list -->
+    <div id="project-list"></div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let ADMIN_KEY = localStorage.getItem('push_admin_key') || '';
+
+  if (ADMIN_KEY) attemptLogin();
+
+  function login() {
+    ADMIN_KEY = document.getElementById('admin-key-input').value.trim();
+    attemptLogin();
+  }
+
+  async function attemptLogin() {
+    const res = await fetch('/admin/projects', {
+      headers: { 'x-admin-key': ADMIN_KEY }
+    });
+    if (!res.ok) {
+      toast('Invalid admin key');
+      return;
+    }
+    localStorage.setItem('push_admin_key', ADMIN_KEY);
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-screen').style.display = 'block';
+    document.getElementById('header-status').textContent = 'Authenticated';
+    const projects = await res.json();
+    renderProjects(projects);
+  }
+
+  async function createProject() {
+    const name = document.getElementById('new-project-name').value.trim();
+    if (!name) return;
+    const res = await fetch('/admin/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ name })
+    });
+    if (!res.ok) { toast('Failed to create project'); return; }
+    const project = await res.json();
+    document.getElementById('new-project-name').value = '';
+    toast(`Project "${project.name}" created`);
+    refreshProjects();
+  }
+
+  async function deleteProject(id, name) {
+    if (!confirm(`Delete project "${name}"? This removes all subscriptions.`)) return;
+    await fetch(`/admin/projects/${id}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-key': ADMIN_KEY }
+    });
+    toast(`Deleted "${name}"`);
+    refreshProjects();
+  }
+
+  async function sendNotification(projectId, apiKey) {
+    const form = document.getElementById(`notify-${projectId}`);
+    const title = form.querySelector('.n-title').value.trim();
+    const body = form.querySelector('.n-body').value.trim();
+    const url = form.querySelector('.n-url').value.trim();
+    if (!title || !body) { toast('Title and body are required'); return; }
+
+    const payload = { title, body };
+    if (url) payload.url = url;
+
+    const res = await fetch('/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    toast(`Sent: ${data.sent} delivered, ${data.failed} failed`);
+    refreshProjects();
+  }
+
+  async function refreshProjects() {
+    const res = await fetch('/admin/projects', { headers: { 'x-admin-key': ADMIN_KEY } });
+    const projects = await res.json();
+    renderProjects(projects);
+  }
+
+  async function renderProjects(projects) {
+    const list = document.getElementById('project-list');
+    if (!projects.length) {
+      list.innerHTML = '<div class="empty">No projects yet — create one above.</div>';
+      return;
+    }
+
+    // Fetch subscriber counts in parallel
+    const counts = await Promise.all(projects.map(p =>
+      fetch('/subscribers', { headers: { 'x-api-key': p.apiKey } })
+        .then(r => r.json()).then(d => d.count).catch(() => '?')
+    ));
+
+    const histories = await Promise.all(projects.map(p =>
+      fetch('/history', { headers: { 'x-api-key': p.apiKey } })
+        .then(r => r.json()).catch(() => [])
+    ));
+
+    list.innerHTML = projects.map((p, i) => `
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">${p.name}</span>
+          <span class="badge">${counts[i]} subscribers</span>
+        </div>
+
+        <div class="label">API Key (click to copy)</div>
+        <div class="api-key" onclick="copyKey(this, '${p.apiKey}')">${p.apiKey}</div>
+
+        <div class="meta">Created ${new Date(p.createdAt).toLocaleDateString()}</div>
+
+        <div style="display:flex;gap:.5rem;margin-top:1rem">
+          <button class="secondary" onclick="toggleNotify('${p.id}')">Send notification</button>
+          <button class="danger" onclick="deleteProject('${p.id}', '${p.name}')">Delete</button>
+        </div>
+
+        <!-- Notify form -->
+        <div class="notify-form" id="notify-${p.id}">
+          <input class="n-title" type="text" placeholder="Title" />
+          <input class="n-body" type="text" placeholder="Body message" />
+          <input class="n-url" type="text" placeholder="URL to open (optional)" />
+          <button onclick="sendNotification('${p.id}', '${p.apiKey}')">Send to all subscribers</button>
+        </div>
+
+        <!-- Recent history -->
+        ${histories[i].length ? `
+          <div class="history-list">
+            <div class="label" style="margin-top:1rem">Recent notifications</div>
+            ${histories[i].slice(0, 5).map(n => `
+              <div class="history-item">
+                <span>${n.title} — ${n.body}</span>
+                <span>${n.successCount} sent · ${new Date(n.sentAt).toLocaleDateString()}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+
+  function toggleNotify(id) {
+    const form = document.getElementById(`notify-${id}`);
+    form.classList.toggle('open');
+  }
+
+  function copyKey(el, key) {
+    navigator.clipboard.writeText(key);
+    const orig = el.textContent;
+    el.textContent = 'Copied!';
+    setTimeout(() => el.textContent = orig, 1500);
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  document.getElementById('admin-key-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+</script>
+
+</body>
+</html>
