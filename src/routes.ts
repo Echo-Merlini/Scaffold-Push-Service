@@ -89,7 +89,8 @@ router.get("/pwa/manifest.json", async (req, res) => {
   const project = await getProjectByApiKey(key);
   if (!project) { res.status(404).json({ error: "project not found" }); return; }
 
-  const base = `${req.protocol}://${req.get("host")}`;
+  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+  const base = `${proto}://${req.get("host")}`;
   const icons: object[] = [];
   if (project.logo)    icons.push({ src: `${base}/pwa/icon/${project.id}/192.png`, sizes: "192x192", type: "image/png" });
   if (project.logo512) icons.push({ src: `${base}/pwa/icon/${project.id}/512.png`, sizes: "512x512", type: "image/png", purpose: "any maskable" });
