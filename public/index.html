@@ -668,13 +668,36 @@ self.addEventListener("notificationclick", (event) => {
         <div class="label">API Key — click to copy</div>
         <div class="api-key" onclick="copyText(this)" data-val="${p.apiKey}">${p.apiKey}</div>
         <hr class="divider" />
-        <div class="label">Logo URL — auto-used as notification icon</div>
-        <div style="display:flex;gap:.5rem;align-items:center">
-          ${p.logo ? `<img src="${p.logo}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1px solid var(--border)" />` : ''}
-          <input type="text" id="logo-${p.id}" placeholder="https://yourapp.com/icon.png" value="${p.logo || ''}" style="flex:1" />
-          <button class="btn btn-ghost" onclick="saveLogo('${p.id}')">Save</button>
+        <div class="label">Logo — auto-used as notification icon</div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap">
+          ${p.logo ? `
+            <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">
+              <img src="${p.logo}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" title="192×192" />
+              <span style="font-size:.65rem;color:var(--muted)">192×192</span>
+            </div>
+            ${p.logo512 ? `
+            <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">
+              <img src="${p.logo512}" style="width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--border)" title="512×512" />
+              <span style="font-size:.65rem;color:var(--muted)">512×512</span>
+            </div>` : ''}
+            ${p.logoBadge ? `
+            <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center">
+              <img src="${p.logoBadge}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;border:1px solid var(--border)" title="96×96" />
+              <span style="font-size:.65rem;color:var(--muted)">96×96</span>
+            </div>` : ''}
+          ` : '<div style="width:64px;height:64px;border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.7rem">No logo</div>'}
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center;margin-top:.75rem;flex-wrap:wrap">
+          <label style="cursor:pointer">
+            <input type="file" id="logo-file-${p.id}" accept="image/*" style="display:none" onchange="uploadLogo('${p.id}')" />
+            <span class="btn btn-ghost" onclick="document.getElementById('logo-file-${p.id}').click()">Upload image</span>
+          </label>
+          <span style="font-size:.72rem;color:var(--muted)">or</span>
+          <input type="text" id="logo-${p.id}" placeholder="https://yourapp.com/icon.png" value="${p.logo || ''}" style="flex:1;min-width:180px" />
+          <button class="btn btn-ghost" onclick="saveLogo('${p.id}')">Save URL</button>
           ${p.logo ? `<button class="btn btn-danger" onclick="removeLogo('${p.id}')">Remove</button>` : ''}
         </div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.4rem">Max 5MB · Auto-resized to 192×192, 512×512, 96×96</div>
         <div style="display:flex;gap:.5rem;margin-top:1rem">
           <button class="btn btn-ghost" onclick="navigate('send');document.getElementById('send-project').value='${p.id}'">Send notification</button>
           <button class="btn btn-danger" onclick="deleteProject('${p.id}','${p.name}')">Delete</button>
@@ -718,6 +741,31 @@ self.addEventListener("notificationclick", (event) => {
     document.getElementById('send-result').textContent =
       `Delivered: ${data.sent}  ·  Failed: ${data.failed}  ·  Expired removed: ${data.expired}`;
     toast(`Sent to ${data.sent} subscribers`);
+  }
+
+  async function uploadLogo(projectId) {
+    const input = document.getElementById(`logo-file-${projectId}`);
+    const file = input.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    toast('Uploading and resizing...');
+    const res = await fetch(`${BASE}/admin/projects/${projectId}/logo/upload`, {
+      method: 'POST',
+      headers: { 'x-admin-key': ADMIN_KEY },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      toast(`Error: ${err.error}`);
+      return;
+    }
+
+    toast('Logo uploaded and resized');
+    await refreshAll();
   }
 
   async function saveLogo(projectId) {

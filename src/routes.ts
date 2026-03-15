@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import { requireApiKey, requireAdminKey } from "./middleware/auth.js";
 import {
@@ -7,6 +8,9 @@ import {
   logNotification, getNotificationHistory,
 } from "./storage.js";
 import { sendToSubscription } from "./push.js";
+import { processLogo } from "./image.js";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 export const router = Router();
 
@@ -35,10 +39,24 @@ router.post("/admin/projects", requireAdminKey, async (req, res) => {
   res.status(201).json(project);
 });
 
+// Set logo via URL
 router.patch("/admin/projects/:id/logo", requireAdminKey, async (req, res) => {
   const { logo } = z.object({ logo: z.string().url().nullable() }).parse(req.body);
-  const project = await updateProjectLogo(req.params.id, logo);
+  const project = await updateProjectLogo(req.params.id, { logo, logo512: logo, logoBadge: logo });
   res.json(project);
+});
+
+// Upload logo image — resized to 192, 512, 96
+router.post("/admin/projects/:id/logo/upload", requireAdminKey, upload.single("logo"), async (req: any, res) => {
+  if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+
+  try {
+    const logos = await processLogo(req.file.buffer);
+    const project = await updateProjectLogo(req.params.id, logos);
+    res.json({ ok: true, logo: project.logo, logo512: project.logo512, logoBadge: project.logoBadge });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.delete("/admin/projects/:id", requireAdminKey, async (req, res) => {

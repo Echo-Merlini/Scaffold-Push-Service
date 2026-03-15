@@ -5,7 +5,9 @@ export const projects = pgTable("projects", {
   id: text("id").primaryKey(),           // nanoid
   name: text("name").notNull(),
   apiKey: text("api_key").notNull().unique(),
-  logo: text("logo"),                    // URL — auto-used as icon in notifications
+  logo: text("logo"),                    // 192×192 data URL — auto-used as notification icon
+  logo512: text("logo_512"),             // 512×512 data URL — PWA app icon
+  logoBadge: text("logo_badge"),         // 96×96 data URL — Android badge
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

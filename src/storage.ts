@@ -24,10 +24,14 @@ export async function deleteProject(id: string) {
   await db.delete(projects).where(eq(projects.id, id));
 }
 
-export async function updateProjectLogo(id: string, logo: string | null) {
+export async function updateProjectLogo(id: string, logos: {
+  logo: string | null;
+  logo512?: string | null;
+  logoBadge?: string | null;
+}) {
   const [updated] = await db
     .update(projects)
-    .set({ logo })
+    .set(logos)
     .where(eq(projects.id, id))
     .returning();
   return updated;
