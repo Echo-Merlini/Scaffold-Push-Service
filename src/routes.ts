@@ -6,7 +6,7 @@ import {
   createProject, listProjects, deleteProject, updateProjectLogo,
   getProjectByApiKey, getProjectById, updateProjectPwa, updateProjectWidgets,
   addScreenshot, deleteScreenshot, getScreenshotsForProject, getScreenshotById,
-  upsertSubscription, removeSubscription, getSubscriptionsForProject,
+  upsertSubscription, removeSubscription, removeSubscriptionById, getSubscriptionsForProject,
   logNotification, getNotificationHistory,
 } from "./storage.js";
 import { sendToSubscription } from "./push.js";
@@ -143,6 +143,23 @@ router.post("/admin/projects/:id/screenshots", requireAdminKey,
     res.status(201).json(s);
   }
 );
+
+// List subscribers for a project (admin view — returns safe subset of fields)
+router.get("/admin/projects/:id/subscribers", requireAdminKey, async (req, res) => {
+  const subs = await getSubscriptionsForProject(req.params.id);
+  res.json(subs.map(s => ({
+    id: s.id,
+    endpointHint: s.endpoint.slice(-12),   // last 12 chars to identify without exposing full URL
+    userAgent: s.userAgent || null,
+    createdAt: s.createdAt,
+  })));
+});
+
+// Remove a subscriber by ID (admin)
+router.delete("/admin/subscribers/:id", requireAdminKey, async (req, res) => {
+  await removeSubscriptionById(req.params.id);
+  res.json({ ok: true });
+});
 
 // List screenshots for a project
 router.get("/admin/projects/:id/screenshots", requireAdminKey, async (req, res) => {

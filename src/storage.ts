@@ -130,9 +130,14 @@ export async function removeSubscription(endpoint: string) {
   await db.delete(subscriptions).where(eq(subscriptions.endpoint, endpoint));
 }
 
+export async function removeSubscriptionById(id: string) {
+  await db.delete(subscriptions).where(eq(subscriptions.id, id));
+}
+
 export async function getSubscriptionsForProject(projectId: string) {
   return db.query.subscriptions.findMany({
     where: eq(subscriptions.projectId, projectId),
+    orderBy: (s, { desc }) => [desc(s.createdAt)],
   });
 }
 
