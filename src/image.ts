@@ -51,13 +51,27 @@ async function buildIco(buffer: Buffer): Promise<Buffer> {
   return Buffer.concat([header, ...entries, ...pngs]);
 }
 
+function isSvgBuffer(buffer: Buffer): boolean {
+  // SVG files start with whitespace or <?xml or <svg
+  const head = buffer.slice(0, 32).toString("utf8").trimStart();
+  return head.startsWith("<svg") || head.startsWith("<?xml") || head.includes("<svg");
+}
+
 export async function processLogo(buffer: Buffer): Promise<{
-  logo: string;      // 192×192 PNG — notification icon
-  logo512: string;   // 512×512 PNG — PWA app icon
-  logoBadge: string; //  96×96  PNG — Android badge
-  logoIco: string;   // multi-res .ico (16/32/48) — favicon
+  logo: string;       // 192×192 PNG — notification icon
+  logo512: string;    // 512×512 PNG — PWA app icon
+  logoBadge: string;  //  96×96  PNG — Android badge
+  logoIco: string;    // multi-res .ico (16/32/48) — favicon
+  logoSvg: string | null; // original SVG (if uploaded as SVG)
 }> {
   validateImageSize(buffer.length);
+
+  const isSvg = isSvgBuffer(buffer);
+  // Store original SVG if uploaded; Sharp can rasterize SVG for the PNG/ICO sizes
+  const logoSvg = isSvg
+    ? `data:image/svg+xml;base64,${buffer.toString("base64")}`
+    : null;
+
   const [logo, logo512, logoBadge, icoBuffer] = await Promise.all([
     resizeToDataUrl(buffer, 192),
     resizeToDataUrl(buffer, 512),
@@ -65,5 +79,5 @@ export async function processLogo(buffer: Buffer): Promise<{
     buildIco(buffer),
   ]);
   const logoIco = `data:image/x-icon;base64,${icoBuffer.toString("base64")}`;
-  return { logo, logo512, logoBadge, logoIco };
+  return { logo, logo512, logoBadge, logoIco, logoSvg };
 }

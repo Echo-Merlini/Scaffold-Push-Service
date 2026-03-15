@@ -9,6 +9,7 @@ export const projects = pgTable("projects", {
   logo512: text("logo_512"),             // 512×512 data URL — PWA app icon
   logoBadge: text("logo_badge"),         // 96×96 data URL — Android badge
   logoIco: text("logo_ico"),             // multi-res .ico (16/32/48) — favicon
+  logoSvg: text("logo_svg"),             // original SVG upload — "any" size in manifest
   // PWA manifest config — served at /pwa/manifest.json?key=API_KEY
   pwaName: text("pwa_name"),
   pwaShortName: text("pwa_short_name"),

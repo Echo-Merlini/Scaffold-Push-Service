@@ -13,7 +13,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 async function runMigrations() {
   await db.execute(sql`
     ALTER TABLE projects
-      ADD COLUMN IF NOT EXISTS logo_ico TEXT
+      ADD COLUMN IF NOT EXISTS logo_ico TEXT,
+      ADD COLUMN IF NOT EXISTS logo_svg TEXT
   `);
   await db.execute(sql`
     ALTER TABLE projects
