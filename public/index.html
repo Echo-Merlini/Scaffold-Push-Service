@@ -302,6 +302,17 @@
     .section { display: none; }
     .section.active { display: block; }
 
+    /* ── Widget accordion ── */
+    .wcard { background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:.6rem; overflow:hidden; }
+    .wcard-head { display:flex; align-items:center; gap:.85rem; padding:.9rem 1.25rem; cursor:pointer; user-select:none; transition:background .1s; }
+    .wcard-head:hover { background:#1a1a1a; }
+    .wthumb { width:80px; height:52px; flex-shrink:0; border-radius:4px; overflow:hidden; border:1px solid var(--border); }
+    .wthumb svg { display:block; width:100%; height:100%; }
+    .wcard-body { border-top:1px solid var(--border); padding:.85rem 1.25rem 1.1rem; }
+    .wconfig-row { margin-bottom:.75rem; }
+    .wconfig-row .label { margin-bottom:.3rem; }
+    .wsnip-box { margin-top:.85rem; }
+
     code {
       font-family: monospace;
       background: #0f0f0f;
@@ -505,81 +516,36 @@ self.addEventListener("notificationclick", (event) => {
 
     <!-- UI Components -->
     <div class="section" id="section-widgets">
-      <div class="card">
-        <div class="card-header"><span class="card-title">Project</span></div>
-        <div class="label">Snippets auto-fill with this project's API key</div>
-        <div class="form-row" style="margin-bottom:0">
-          <select id="widgets-project" onchange="renderWidgets()"></select>
-        </div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header" style="margin-bottom:.5rem"><span class="card-title">Connected Project</span></div>
+        <div class="label">All widgets are pre-configured with this project's API key</div>
+        <select id="widgets-project" onchange="onWidgetsProjectChange()" style="width:100%"></select>
       </div>
-
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">🔔 Bell Widget</span>
-          <button class="btn btn-ghost" style="font-size:.75rem" onclick="copyPre('widget-bell-code')">Copy</button>
+      <div id="widget-list"></div>
+      <!-- Preview overlay -->
+      <div id="wpreview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;align-items:center;justify-content:center">
+        <div style="width:100%;max-width:960px;padding:0 1.5rem">
+          <div style="background:#111;border:1px solid #222;border-radius:10px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.8)">
+            <div style="background:#0a0a0a;padding:.55rem 1rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid #1e1e1e">
+              <div style="display:flex;gap:.35rem">
+                <div style="width:10px;height:10px;border-radius:50%;background:#ff5f57"></div>
+                <div style="width:10px;height:10px;border-radius:50%;background:#febc2e"></div>
+                <div style="width:10px;height:10px;border-radius:50%;background:#28c840"></div>
+              </div>
+              <div style="flex:1;background:#1a1a1a;border-radius:4px;padding:.2rem .75rem;font-size:.7rem;color:#555;text-align:center">yoursite.com</div>
+              <button onclick="closeWidgetPreview()" style="background:none;border:1px solid #333;color:#888;border-radius:4px;font-size:.72rem;padding:.2rem .65rem;cursor:pointer">&#x2715; Close</button>
+            </div>
+            <div id="wpreview-page" style="position:relative;min-height:420px;background:linear-gradient(160deg,#0f0f1a 0%,#111827 100%);overflow:hidden">
+              <div style="padding:2.5rem 2rem">
+                <div style="height:12px;background:#1e1e2e;border-radius:4px;width:40%;margin-bottom:.75rem"></div>
+                <div style="height:8px;background:#1a1a2a;border-radius:3px;width:65%;margin-bottom:.5rem"></div>
+                <div style="height:8px;background:#1a1a2a;border-radius:3px;width:50%"></div>
+              </div>
+              <div id="wpreview-widget-container"></div>
+            </div>
+          </div>
+          <p style="text-align:center;color:#444;font-size:.72rem;margin-top:.6rem">Live preview — subscribe/unsubscribe registers real subscriptions for the selected project</p>
         </div>
-        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">
-          Floating bell button fixed to the bottom-right corner. Opens a popover letting users subscribe or unsubscribe at any time. Shows a green dot when subscribed.
-        </p>
-        <pre id="widget-bell-code">Select a project above to generate snippet.</pre>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">📢 Subscribe Banner</span>
-          <button class="btn btn-ghost" style="font-size:.75rem" onclick="copyPre('widget-banner-code')">Copy</button>
-        </div>
-        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">
-          Inline dismissible banner to place inside authenticated pages (e.g. dashboard). Only shows if the user is not yet subscribed and has not dismissed it before.
-        </p>
-        <pre id="widget-banner-code">Select a project above to generate snippet.</pre>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">📲 PWA Install Prompt</span>
-          <button class="btn btn-ghost" style="font-size:.75rem" onclick="copyPre('widget-pwa-code')">Copy</button>
-        </div>
-        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">
-          Catches the browser's <code>beforeinstallprompt</code> event and shows a polished "Add to Home Screen" card above the bell widget. Dismissible, remembers choice in localStorage.
-        </p>
-        <pre id="widget-pwa-code">Select a project above to generate snippet.</pre>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">⚙️ Service Worker</span>
-          <button class="btn btn-ghost" style="font-size:.75rem" onclick="copyPre('widget-sw-code')">Copy</button>
-        </div>
-        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">
-          Save as <code>public/sw.js</code> in your project. Required for all widgets — handles incoming push events and notification clicks.
-        </p>
-        <pre id="widget-sw-code">// public/sw.js
-self.addEventListener("push", (event) => {
-  const data = event.data ? event.data.json() : {};
-  event.waitUntil(
-    self.registration.showNotification(data.title || "Notification", {
-      body: data.body || "",
-      icon: data.icon || "/favicon.png",
-      badge: data.badge || "/favicon.png",
-      image: data.image || undefined,
-      data: { url: data.url || "/" },
-    })
-  );
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      const target = event.notification.data?.url || "/";
-      for (const client of list) {
-        if (client.url === target && "focus" in client) return client.focus();
-      }
-      if (clients.openWindow) return clients.openWindow(target);
-    })
-  );
-});</pre>
       </div>
     </div>
 
@@ -980,12 +946,315 @@ await fetch("${BASE}/notify", {
 
   // ── UI Components / Widgets ───────────────────────────────────
 
-  function renderWidgets() {
-    const sel = document.getElementById('widgets-project');
-    const option = sel.options[sel.selectedIndex];
-    const apiKey = option?.dataset.key || 'YOUR_PROJECT_API_KEY';
+  var WSTATE = {};
 
-    document.getElementById('widget-bell-code').textContent =
+  var W_DEFS = [
+    { id:'bell', title:'Bell Widget', desc:'Floating subscribe/unsubscribe button fixed to a corner of the page',
+      thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><circle cx="65" cy="40" r="9" fill="#16a34a"/><path d="M65 36.5a3.5 3.5 0 0 0-3.5 3.5c0 3.5-1.5 5-1.5 5h7s-1.5-1.5-1.5-5a3.5 3.5 0 0 0-3.5-3.5z" fill="white"/><circle cx="65" cy="47" r="1" fill="white"/></svg>',
+      fields:[
+        {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a'},
+        {key:'position', label:'Position', type:'select', opts:['bottom-right','bottom-left'], def:'bottom-right'},
+      ]
+    },
+    { id:'banner', title:'Subscribe Banner', desc:'Inline dismissible banner — place inside authenticated pages',
+      thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><rect x="6" y="35" width="68" height="11" rx="3" fill="#0f1f15" stroke="#1a3a22"/><circle cx="15" cy="40.5" r="3.5" fill="#16a34a"/><rect x="54" y="38" width="15" height="5" rx="2" fill="#16a34a"/></svg>',
+      fields:[
+        {key:'heading', label:'Heading', type:'text', def:'Stay in the loop'},
+        {key:'body', label:'Body text', type:'text', def:'Enable push notifications to get updates instantly.'},
+        {key:'btnText', label:'Button label', type:'text', def:'Enable'},
+        {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a'},
+      ]
+    },
+    { id:'pwa', title:'PWA Install Prompt', desc:'Polished "Add to Home Screen" card — replaces the browser default',
+      thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><rect x="46" y="20" width="28" height="26" rx="4" fill="#0e0820" stroke="#7c3aed" stroke-width=".8"/><rect x="52" y="38" width="16" height="5" rx="2" fill="#7c3aed"/><rect x="50" y="24" width="20" height="3" rx="1" fill="#333"/><rect x="50" y="30" width="14" height="2" rx="1" fill="#2a2a2a"/></svg>',
+      fields:[
+        {key:'cardTitle', label:'Title', type:'text', def:'Install App'},
+        {key:'cardBody', label:'Description', type:'text', def:'Add to your home screen for a faster, app-like experience.'},
+        {key:'btnColor', label:'Button color', type:'color', def:'#7c3aed'},
+      ]
+    },
+    { id:'sw', title:'Service Worker', desc:'Required by all widgets — save as public/sw.js in your project',
+      thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><rect x="10" y="16" width="60" height="28" rx="2" fill="#0a0a0a" stroke="#1e1e1e"/><text x="14" y="28" font-family="monospace" font-size="6.5" fill="#4a4a4a">self.addEventListener(</text><text x="14" y="37" font-family="monospace" font-size="6.5" fill="#3a3a3a">  "push", handler)</text></svg>',
+      fields:[]
+    },
+  ];
+
+  function renderWidgets() { renderWidgetList(); }
+  function onWidgetsProjectChange() { renderWidgetList(); }
+
+  function renderWidgetList() {
+    var sel = document.getElementById('widgets-project');
+    if (!sel) return;
+
+    var html = W_DEFS.map(function(w) {
+      var open = !!WSTATE[w.id];
+
+      var fieldsHtml = w.fields.map(function(f) {
+        var input;
+        if (f.type === 'color') {
+          input = '<div style="display:flex;align-items:center;gap:.5rem">' +
+            '<input type="color" id="wf-'+w.id+'-'+f.key+'" value="'+f.def+'" style="width:2.25rem;height:1.85rem;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;padding:.1rem" oninput="wcSyncText(\''+w.id+'\',\''+f.key+'\')">' +
+            '<input type="text" id="wft-'+w.id+'-'+f.key+'" value="'+f.def+'" style="width:90px;font-family:monospace" oninput="wcSyncPicker(\''+w.id+'\',\''+f.key+'\')">' +
+            '</div>';
+        } else if (f.type === 'select') {
+          input = '<select id="wf-'+w.id+'-'+f.key+'" style="width:auto" onchange="wcChange(\''+w.id+'\')">' +
+            f.opts.map(function(o){return '<option value="'+o+'"'+(o===f.def?' selected':'')+'>'+o+'</option>';}).join('') +
+            '</select>';
+        } else {
+          input = '<input type="text" id="wf-'+w.id+'-'+f.key+'" value="'+f.def+'" oninput="wcChange(\''+w.id+'\')">';
+        }
+        return '<div class="wconfig-row"><div class="label">'+f.label+'</div>'+input+'</div>';
+      }).join('');
+
+      var actionRow = w.id === 'sw'
+        ? '<div style="margin-top:.85rem"><button class="btn" onclick="wcShowSnippet(\'sw\')" style="font-size:.8rem">Copy sw.js</button></div>'
+        : '<div style="display:flex;gap:.5rem;margin-top:.85rem">' +
+            '<button class="btn btn-ghost" onclick="previewWidget(\''+w.id+'\')" style="font-size:.8rem">Preview</button>' +
+            '<button class="btn" onclick="wcShowSnippet(\''+w.id+'\')" style="font-size:.8rem">Get Code</button>' +
+          '</div>';
+
+      return '<div class="wcard" id="wcard-'+w.id+'">' +
+        '<div class="wcard-head" onclick="wcToggle(\''+w.id+'\')">' +
+          '<div class="wthumb">'+w.thumb+'</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-size:.88rem;font-weight:600;color:var(--text)">'+w.title+'</div>' +
+            '<div style="font-size:.75rem;color:var(--text-dim);margin-top:.15rem">'+w.desc+'</div>' +
+          '</div>' +
+          '<svg id="wchev-'+w.id+'" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--muted);transition:transform .2s'+(open?';transform:rotate(180deg)':'')+'"><polyline points="6 9 12 15 18 9"/></svg>' +
+        '</div>' +
+        '<div id="wbody-'+w.id+'" style="display:'+(open?'block':'none')+'" class="wcard-body">' +
+          fieldsHtml +
+          actionRow +
+          '<div id="wsnip-'+w.id+'" class="wsnip-box" style="display:none">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">' +
+              '<span style="font-size:.72rem;color:var(--muted)">Paste into your project</span>' +
+              '<button class="btn btn-ghost" style="font-size:.72rem;padding:.25rem .65rem" onclick="wcCopy(\''+w.id+'\')">Copy</button>' +
+            '</div>' +
+            '<pre id="wsnip-pre-'+w.id+'" style="max-height:260px;overflow-y:auto;font-size:.72rem"></pre>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('widget-list').innerHTML = html;
+  }
+
+  function wcToggle(id) {
+    var body = document.getElementById('wbody-'+id);
+    var chev = document.getElementById('wchev-'+id);
+    var isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    chev.style.transform = isOpen ? '' : 'rotate(180deg)';
+    WSTATE[id] = !isOpen;
+  }
+
+  function wcSyncText(wid, fkey) {
+    var picker = document.getElementById('wf-'+wid+'-'+fkey);
+    var text = document.getElementById('wft-'+wid+'-'+fkey);
+    if (picker && text) { text.value = picker.value; wcChange(wid); }
+  }
+
+  function wcSyncPicker(wid, fkey) {
+    var picker = document.getElementById('wf-'+wid+'-'+fkey);
+    var text = document.getElementById('wft-'+wid+'-'+fkey);
+    if (picker && text && /^#[0-9a-fA-F]{6}$/.test(text.value)) picker.value = text.value;
+    wcChange(wid);
+  }
+
+  function wcChange(id) {
+    var snip = document.getElementById('wsnip-'+id);
+    if (snip && snip.style.display !== 'none') wcShowSnippet(id);
+  }
+
+  function wcGetConfig(id) {
+    var w = W_DEFS.find(function(d){return d.id===id;});
+    var cfg = {};
+    if (!w) return cfg;
+    w.fields.forEach(function(f) {
+      var el = document.getElementById(f.type==='color' ? 'wft-'+id+'-'+f.key : 'wf-'+id+'-'+f.key);
+      cfg[f.key] = el ? el.value.trim() : f.def;
+    });
+    return cfg;
+  }
+
+  function wcGetApiKey() {
+    var sel = document.getElementById('widgets-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    return opt ? opt.dataset.key : 'YOUR_PROJECT_API_KEY';
+  }
+
+  function wcShowSnippet(id) {
+    var box = document.getElementById('wsnip-'+id);
+    var pre = document.getElementById('wsnip-pre-'+id);
+    if (!box || !pre) return;
+    pre.textContent = wcBuildSnippet(id, wcGetApiKey(), wcGetConfig(id));
+    box.style.display = 'block';
+    if (id === 'sw') { navigator.clipboard.writeText(pre.textContent); toast('sw.js copied!'); }
+  }
+
+  function wcCopy(id) {
+    var pre = document.getElementById('wsnip-pre-'+id);
+    if (pre) { navigator.clipboard.writeText(pre.textContent); toast('Copied!'); }
+  }
+
+  function wcBuildSnippet(id, apiKey, cfg) {
+    if (id === 'bell')   return wcBuildBell(apiKey, cfg);
+    if (id === 'banner') return wcBuildBanner(apiKey, cfg);
+    if (id === 'pwa')    return wcBuildPwa(cfg);
+    if (id === 'sw')     return wcBuildSw();
+    return '';
+  }
+
+  function wcBuildBell(apiKey, cfg) {
+    var color = cfg.accentColor || '#16a34a';
+    var side  = cfg.position === 'bottom-left' ? 'left:1.5rem' : 'right:1.5rem';
+    return [
+      '<!-- Push Bell Widget — place anywhere in <body> -->',
+      '<!-- Also add /sw.js from the Service Worker snippet -->',
+      '<style>',
+      '#push-bell-wrap{position:fixed;bottom:1.5rem;'+side+';z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:.5rem;font-family:system-ui,sans-serif}',
+      '#push-bell-btn{position:relative;width:3rem;height:3rem;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.45);transition:transform .15s}',
+      '#push-bell-btn:hover{transform:scale(1.1)}',
+      '#push-bell-btn.pbs-on{background:'+color+'}',
+      '#push-bell-btn.pbs-off{background:#1f2937;border:1px solid #374151}',
+      '#push-bell-dot{position:absolute;top:2px;right:2px;width:10px;height:10px;background:'+color+';border-radius:50%;border:2px solid #111;display:none}',
+      '#push-bell-panel{background:#111;border:1px solid #222;border-radius:14px;padding:1rem;width:17rem;box-shadow:0 8px 30px rgba(0,0,0,.5)}',
+      '#push-bell-panel h4{color:#e5e5e5;font-size:.88rem;font-weight:600;margin:0 0 .5rem}',
+      '#push-bell-panel p{color:#888;font-size:.78rem;margin:0 0 .75rem}',
+      '.pbp-row{display:flex;gap:.5rem;align-items:center}',
+      '.pbp-close{margin-left:auto;background:none;border:none;color:#555;cursor:pointer;font-size:1rem;line-height:1}',
+      '.pbp-action{background:'+color+';color:#fff;border:none;border-radius:8px;padding:.5rem 1rem;font-size:.82rem;font-weight:600;cursor:pointer;width:100%}',
+      '.pbp-unsub{background:none;border:none;color:#888;font-size:.75rem;cursor:pointer;width:100%;padding:.25rem 0}',
+      '.pbp-unsub:hover{color:#f87171}',
+      '.pbp-blocked{font-size:.75rem;color:#f87171;background:#3a1a1a;border-radius:6px;padding:.5rem;margin:0}',
+      '</style>',
+      '<div id="push-bell-wrap">',
+      '  <div id="push-bell-panel" style="display:none">',
+      '    <div class="pbp-row"><h4>Push Notifications</h4><button class="pbp-close" onclick="pbClose()">&#x2715;</button></div>',
+      '    <div id="pb-body"></div>',
+      '  </div>',
+      '  <button id="push-bell-btn" class="pbs-off" onclick="pbToggle()" title="Notifications">',
+      '    <svg id="pb-icon" width="20" height="20" fill="none" stroke="#ccc" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+      '    <span id="push-bell-dot"></span>',
+      '  </button>',
+      '</div>',
+      '<script>(function(){',
+      '  var URL="'+BASE+'",KEY="'+apiKey+'",open=false,sub=false,busy=false;',
+      '  function b64(s){var p=(s+"=".repeat((4-s.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/");var b=atob(p),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}',
+      '  function ui(){var btn=document.getElementById("push-bell-btn"),dot=document.getElementById("push-bell-dot"),ico=document.getElementById("pb-icon"),body=document.getElementById("pb-body");btn.className=sub?"pbs-on":"pbs-off";ico.setAttribute("stroke",sub?"#fff":"#ccc");dot.style.display=sub?"block":"none";if(Notification.permission==="denied"){body.innerHTML=\'<p class="pbp-blocked">Notifications blocked in browser settings.</p>\'}else if(sub){body.innerHTML=\'<p>Subscribed to notifications.</p><button class="pbp-unsub" onclick="pbUnsub()">Unsubscribe</button>\'}else{body.innerHTML=\'<p>Get notified even when you\\\'re away.</p><button class="pbp-action" onclick="pbSub()">Enable notifications</button>\';}}',
+      '  async function init(){if(!("serviceWorker"in navigator)||!("PushManager"in window))return;await navigator.serviceWorker.register("/sw.js");var reg=await navigator.serviceWorker.ready;var s=await reg.pushManager.getSubscription();if(s){sub=true;ui();}}',
+      '  window.pbToggle=function(){open=!open;document.getElementById("push-bell-panel").style.display=open?"block":"none";if(open)ui();};',
+      '  window.pbClose=function(){open=false;document.getElementById("push-bell-panel").style.display="none";};',
+      '  window.pbSub=async function(){if(busy)return;busy=true;var perm=await Notification.requestPermission();if(perm!=="granted"){busy=false;ui();return;}var vk=(await fetch(URL+"/vapid-public-key").then(function(r){return r.json();})).publicKey;var reg=await navigator.serviceWorker.ready;var s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(vk)});await fetch(URL+"/subscribe",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":KEY},body:JSON.stringify(s.toJSON())});sub=true;busy=false;ui();};',
+      '  window.pbUnsub=async function(){if(busy)return;busy=true;var reg=await navigator.serviceWorker.ready;var s=await reg.pushManager.getSubscription();if(s){await fetch(URL+"/unsubscribe",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":KEY},body:JSON.stringify({endpoint:s.endpoint})});await s.unsubscribe();}sub=false;busy=false;ui();};',
+      '  init();',
+      '})();<\/script>',
+    ].join('\n');
+  }
+
+  function wcBuildBanner(apiKey, cfg) {
+    var color  = cfg.accentColor || '#16a34a';
+    var head   = (cfg.heading || 'Stay in the loop').replace(/</g,'&lt;');
+    var body   = (cfg.body || 'Enable push notifications to get updates instantly.').replace(/</g,'&lt;');
+    var btnTxt = (cfg.btnText || 'Enable').replace(/</g,'&lt;');
+    return [
+      '<!-- Subscribe Banner — place inside authenticated pages -->',
+      '<div id="push-banner" style="display:none;align-items:center;gap:.75rem;background:#1f2937;border:1px solid #374151;border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;font-family:system-ui,sans-serif">',
+      '  <div style="width:2.25rem;height:2.25rem;background:'+color+'22;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" fill="none" stroke="'+color+'" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>',
+      '  <div style="flex:1;min-width:0"><p style="color:#e5e5e5;font-size:.85rem;font-weight:600;margin:0">'+head+'</p><p style="color:#9ca3af;font-size:.75rem;margin:.1rem 0 0">'+body+'</p></div>',
+      '  <div style="display:flex;gap:.5rem;flex-shrink:0">',
+      '    <button id="push-banner-btn" onclick="bannerSub()" style="background:'+color+';color:#fff;border:none;border-radius:6px;padding:.4rem .85rem;font-size:.78rem;font-weight:600;cursor:pointer">'+btnTxt+'</button>',
+      '    <button onclick="bannerDismiss()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:1.1rem;line-height:1">&#x2715;</button>',
+      '  </div>',
+      '</div>',
+      '<script>(function(){',
+      '  var URL="'+BASE+'",KEY="'+apiKey+'",DK="push_banner_dismissed";',
+      '  function b64(s){var p=(s+"=".repeat((4-s.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/");var b=atob(p),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}',
+      '  async function init(){if(!("serviceWorker"in navigator)||!("PushManager"in window))return;if(localStorage.getItem(DK)||Notification.permission==="denied")return;await navigator.serviceWorker.register("/sw.js");var reg=await navigator.serviceWorker.ready;var s=await reg.pushManager.getSubscription();if(!s)document.getElementById("push-banner").style.display="flex";}',
+      '  window.bannerDismiss=function(){localStorage.setItem(DK,"1");document.getElementById("push-banner").style.display="none";};',
+      '  window.bannerSub=async function(){var btn=document.getElementById("push-banner-btn");btn.textContent="...";btn.disabled=true;var perm=await Notification.requestPermission();if(perm!=="granted"){bannerDismiss();return;}var vk=(await fetch(URL+"/vapid-public-key").then(function(r){return r.json();})).publicKey;var reg=await navigator.serviceWorker.ready;var s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(vk)});await fetch(URL+"/subscribe",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":KEY},body:JSON.stringify(s.toJSON())});bannerDismiss();};',
+      '  init();',
+      '})();<\/script>',
+    ].join('\n');
+  }
+
+  function wcBuildPwa(cfg) {
+    var btnColor  = cfg.btnColor || '#7c3aed';
+    var cardTitle = (cfg.cardTitle || 'Install App').replace(/</g,'&lt;');
+    var cardBody  = (cfg.cardBody || 'Add to your home screen for a faster, app-like experience.').replace(/</g,'&lt;');
+    return [
+      '<!-- PWA Install Prompt — place anywhere in <body> -->',
+      '<div id="pwa-prompt" style="display:none;position:fixed;bottom:5.5rem;right:1.5rem;z-index:9998;width:17rem;background:#111;border:1px solid #222;border-radius:14px;padding:1rem;box-shadow:0 8px 30px rgba(0,0,0,.5);font-family:system-ui,sans-serif">',
+      '  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.6rem">',
+      '    <div style="display:flex;align-items:center;gap:.5rem">',
+      '      <div style="width:2rem;height:2rem;background:'+btnColor+'33;border-radius:6px;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" fill="none" stroke="'+btnColor+'" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg></div>',
+      '      <span style="color:#e5e5e5;font-size:.85rem;font-weight:600">'+cardTitle+'</span>',
+      '    </div>',
+      '    <button onclick="pwaDismiss()" style="background:none;border:none;color:#555;cursor:pointer;font-size:1.1rem;line-height:1">&#x2715;</button>',
+      '  </div>',
+      '  <p style="color:#9ca3af;font-size:.75rem;margin:0 0 .85rem">'+cardBody+'</p>',
+      '  <div style="display:flex;gap:.5rem">',
+      '    <button onclick="pwaInstall()" id="pwa-install-btn" style="flex:1;background:'+btnColor+';color:#fff;border:none;border-radius:8px;padding:.5rem;font-size:.82rem;font-weight:600;cursor:pointer">Install</button>',
+      '    <button onclick="pwaDismiss()" style="background:none;border:none;color:#9ca3af;font-size:.75rem;cursor:pointer;padding:.25rem .5rem">Not now</button>',
+      '  </div>',
+      '</div>',
+      '<script>(function(){',
+      '  var DK="pwa_install_dismissed",dp=null;',
+      '  if(localStorage.getItem(DK))return;',
+      '  window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();dp=e;document.getElementById("pwa-prompt").style.display="block";});',
+      '  window.pwaDismiss=function(){localStorage.setItem(DK,"1");document.getElementById("pwa-prompt").style.display="none";};',
+      '  window.pwaInstall=async function(){if(!dp)return;var btn=document.getElementById("pwa-install-btn");btn.textContent="Installing...";btn.disabled=true;await dp.prompt();var r=await dp.userChoice;if(r.outcome==="accepted")pwaDismiss();else{btn.textContent="Install";btn.disabled=false;}dp=null;};',
+      '})();<\/script>',
+    ].join('\n');
+  }
+
+  function wcBuildSw() {
+    return [
+      '// public/sw.js — place in your project\'s public/ folder',
+      'self.addEventListener("push", function(e) {',
+      '  var d = e.data ? e.data.json() : {};',
+      '  e.waitUntil(self.registration.showNotification(d.title || "Notification", {',
+      '    body: d.body || "", icon: d.icon || "/favicon.png",',
+      '    badge: d.badge || "/favicon.png", image: d.image || undefined,',
+      '    data: { url: d.url || "/" },',
+      '  }));',
+      '});',
+      'self.addEventListener("notificationclick", function(e) {',
+      '  e.notification.close();',
+      '  var url = e.notification.data && e.notification.data.url || "/";',
+      '  e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(function(list){',
+      '    for(var i=0;i<list.length;i++){if(list[i].url===url&&"focus"in list[i])return list[i].focus();}',
+      '    if(clients.openWindow)return clients.openWindow(url);',
+      '  }));',
+      '});',
+    ].join('\n');
+  }
+
+  function previewWidget(id) {
+    var snippet = wcBuildSnippet(id, wcGetApiKey(), wcGetConfig(id));
+    // Force visibility for widgets that hide themselves by default
+    if (id === 'banner') snippet = snippet.replace('display:none;align-items', 'display:flex;align-items');
+    if (id === 'pwa')    snippet = snippet.replace('display:none;position:fixed', 'display:block;position:fixed');
+
+    var container = document.getElementById('wpreview-widget-container');
+    container.innerHTML = snippet;
+    // Re-execute injected scripts
+    container.querySelectorAll('script').forEach(function(old) {
+      var s = document.createElement('script');
+      s.textContent = old.textContent;
+      document.body.appendChild(s);
+    });
+    document.getElementById('wpreview').style.display = 'flex';
+  }
+
+  function closeWidgetPreview() {
+    document.getElementById('wpreview').style.display = 'none';
+    document.getElementById('wpreview-widget-container').innerHTML = '';
+  }
+
+  function _oldRenderWidgets_REMOVED() {
+
+    document.getElementById('widget-bell-code-REMOVED').textContent =
 `<!-- Bell Widget: drop anywhere in <body> -->
 <!-- Requires sw.js in your public/ folder (see Service Worker tab) -->
 <style>
@@ -1198,9 +1467,8 @@ await fetch("${BASE}/notify", {
   }
 
   function copyPre(id) {
-    const text = document.getElementById(id).textContent;
-    navigator.clipboard.writeText(text);
-    toast('Copied to clipboard!');
+    var el = document.getElementById(id);
+    if (el) { navigator.clipboard.writeText(el.textContent); toast('Copied!'); }
   }
 
 </script>
