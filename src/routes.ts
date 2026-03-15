@@ -656,7 +656,14 @@ router.post("/notify", requireApiKey, async (req, res) => {
     failureCount,
   });
 
-  res.json({ sent: successCount, failed: failureCount, expired: expired.length });
+  // Surface first failure reason for dashboard debugging
+  const firstFailure = results.find(r => !r.success);
+  res.json({
+    sent: successCount,
+    failed: failureCount,
+    expired: expired.length,
+    ...(firstFailure ? { errorStatus: firstFailure.errorStatus, errorBody: firstFailure.errorBody } : {}),
+  });
 });
 
 // ── Notification history ──────────────────────────────────────────────────────

@@ -22,7 +22,7 @@ export interface PushPayload {
 export async function sendToSubscription(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: PushPayload
-): Promise<{ success: boolean; expired?: boolean }> {
+): Promise<{ success: boolean; expired?: boolean; errorStatus?: number; errorBody?: string }> {
   try {
     await webpush.sendNotification(
       {
@@ -33,10 +33,13 @@ export async function sendToSubscription(
     );
     return { success: true };
   } catch (err: any) {
+    const status: number = err.statusCode ?? err.status ?? 0;
+    const body: string = err.body ?? err.message ?? String(err);
+    console.error(`[push] sendNotification failed — status=${status} endpoint=…${subscription.endpoint.slice(-20)} body=${body}`);
     // 404/410 = subscription is expired/unsubscribed
-    if (err.statusCode === 404 || err.statusCode === 410) {
-      return { success: false, expired: true };
+    if (status === 404 || status === 410) {
+      return { success: false, expired: true, errorStatus: status, errorBody: body };
     }
-    return { success: false };
+    return { success: false, errorStatus: status, errorBody: body };
   }
 }

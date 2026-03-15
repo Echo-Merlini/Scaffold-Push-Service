@@ -1001,9 +1001,22 @@ self.addEventListener("notificationclick", (event) => {
       body: JSON.stringify(payload)
     });
     const data = await res.json();
-    document.getElementById('send-result').textContent =
-      `Delivered: ${data.sent}  ·  Failed: ${data.failed}  ·  Expired removed: ${data.expired}`;
-    toast(`Sent to ${data.sent} subscribers`);
+    var resultEl = document.getElementById('send-result');
+    var summary = `Delivered: ${data.sent}  ·  Failed: ${data.failed}  ·  Expired removed: ${data.expired}`;
+    if (data.failed > 0 && data.errorStatus) {
+      summary += `\nFailure reason: HTTP ${data.errorStatus} — ${data.errorBody || 'unknown'}`;
+    }
+    if (data.sent === 0 && data.failed === 0 && data.expired === 0) {
+      summary += '\n⚠ No subscribers found for this project. Make sure subscribers opted in using this project\'s API key.';
+    }
+    resultEl.style.whiteSpace = 'pre-wrap';
+    resultEl.textContent = summary;
+    if (data.sent > 0) {
+      toast(`Sent to ${data.sent} subscriber${data.sent !== 1 ? 's' : ''}`);
+    } else {
+      toast(data.failed > 0 ? `Push failed — check result for details` : 'No subscribers to notify');
+    }
+    updateSendSubCount();
   }
 
   async function uploadLogo(projectId) {
