@@ -156,6 +156,211 @@ router.delete("/admin/screenshots/:id", requireAdminKey, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Hosted widget script (include with one <script> tag) ─────────────────────
+
+router.get("/widgets.js", async (req, res) => {
+  const key = req.query.key as string;
+  if (!key) { res.status(400).send("// key query param required"); return; }
+
+  const project = await getProjectByApiKey(key);
+  if (!project) { res.status(404).send("// project not found"); return; }
+
+  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+  const base  = `${proto}://${req.get("host")}`;
+  const defaults = { bell: true, banner: false, install: true };
+  let widgetCfg = defaults;
+  try { widgetCfg = { ...defaults, ...JSON.parse((project as any).widgetsConfig || "{}") }; } catch {}
+
+  const themeColor = project.pwaThemeColor || "#16a34a";
+  const iconUrl    = project.logo ? `${base}/pwa/icon/${project.id}/192.png` : null;
+
+  const js = `/* Push Service Widgets — ${project.name} */
+(function(){
+  var PUSH='${base}';
+  var KEY='${key}';
+  var THEME='${themeColor}';
+  var ICON=${iconUrl ? `'${iconUrl}'` : 'null'};
+  var CFG=${JSON.stringify(widgetCfg)};
+  var DISMISSED_INSTALL='_pws_install_dismissed';
+  var dp=null;
+
+  /* ── Helpers ── */
+  function urlB64(b){
+    var p='='.repeat((4-b.length%4)%4);
+    var s=(b+p).replace(/-/g,'+').replace(/_/g,'/');
+    var r=atob(s);
+    return Uint8Array.from([].slice.call(r).map(function(c){return c.charCodeAt(0);}));
+  }
+
+  function css(el,styles){Object.assign(el.style,styles);}
+
+  function mkEl(tag,attrs,styles){
+    var el=document.createElement(tag);
+    if(attrs)Object.assign(el,attrs);
+    if(styles)css(el,styles);
+    return el;
+  }
+
+  /* ── Service Worker ── */
+  function registerSW(){
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  }
+
+  /* ── Subscribe ── */
+  async function subscribe(){
+    if(!('serviceWorker' in navigator && 'PushManager' in window))return false;
+    try{
+      var reg=await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      var ex=await reg.pushManager.getSubscription();
+      if(ex)await ex.unsubscribe();
+      var vr=await fetch(PUSH+'/vapid-public-key');
+      var vj=await vr.json();
+      var sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(vj.publicKey)});
+      await fetch(PUSH+'/subscribe',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':KEY},body:JSON.stringify(sub.toJSON())});
+      return true;
+    }catch(e){return false;}
+  }
+
+  async function unsubscribe(){
+    try{
+      var reg=await navigator.serviceWorker.getRegistration('/sw.js');
+      if(!reg)return false;
+      var sub=await reg.pushManager.getSubscription();
+      if(!sub)return false;
+      await fetch(PUSH+'/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':KEY},body:JSON.stringify({endpoint:sub.endpoint})});
+      await sub.unsubscribe();
+      return true;
+    }catch(e){return false;}
+  }
+
+  async function isSubscribed(){
+    try{
+      var reg=await navigator.serviceWorker.getRegistration('/sw.js');
+      if(!reg)return false;
+      return !!(await reg.pushManager.getSubscription());
+    }catch(e){return false;}
+  }
+
+  /* ── Bell Widget ── */
+  function mountBell(){
+    if(!('serviceWorker' in navigator && 'PushManager' in window))return;
+
+    var wrap=mkEl('div',null,{position:'fixed',bottom:'24px',right:'24px',zIndex:'999999',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'8px',fontFamily:'system-ui,-apple-system,sans-serif'});
+
+    var panel=mkEl('div',null,{display:'none',background:'#111',border:'1px solid #333',borderRadius:'16px',boxShadow:'0 8px 32px rgba(0,0,0,.5)',padding:'16px',width:'280px',color:'#e5e5e5',fontSize:'13px'});
+
+    var panelHead=mkEl('div',null,{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'});
+    var panelTitle=mkEl('span',{textContent:'Push Notifications'},{fontWeight:'600',fontSize:'14px'});
+    var closeBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#888',cursor:'pointer',fontSize:'14px',lineHeight:'1',padding:'0'});
+    closeBtn.onclick=function(){panel.style.display='none';};
+    panelHead.append(panelTitle,closeBtn);
+
+    var panelBody=mkEl('div');
+    panel.append(panelHead,panelBody);
+
+    var btn=mkEl('button',null,{width:'48px',height:'48px',borderRadius:'50%',border:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 12px rgba(0,0,0,.4)',transition:'transform .15s',background:'#1a1a1a',color:'#aaa',fontSize:'20px'});
+    btn.innerHTML='&#x1F515;';
+    btn.onmouseenter=function(){btn.style.transform='scale(1.1)';};
+    btn.onmouseleave=function(){btn.style.transform='scale(1)';};
+
+    var subbed=false;
+
+    function refresh(s){
+      subbed=s;
+      if(s){
+        btn.style.background=THEME;
+        btn.style.color='#fff';
+        btn.innerHTML='&#x1F514;';
+        btn.title='Manage notifications';
+        panelBody.innerHTML='<div style="background:#0d2a17;border-radius:8px;padding:10px;color:#4ade80;font-size:12px;margin-bottom:10px">&#x2713; You are subscribed to notifications.</div>';
+        var ub=mkEl('button',{textContent:'Unsubscribe'},{width:'100%',background:'none',border:'1px solid #333',borderRadius:'8px',color:'#888',padding:'8px',cursor:'pointer',fontSize:'12px'});
+        ub.onclick=async function(){ub.disabled=true;ub.textContent='...';var ok=await unsubscribe();refresh(false);if(ok)ub.textContent='Done';};
+        panelBody.append(ub);
+      } else {
+        btn.style.background='#1a1a1a';
+        btn.style.color='#aaa';
+        btn.innerHTML='&#x1F515;';
+        btn.title='Enable notifications';
+        panelBody.innerHTML='<p style="color:#888;font-size:12px;margin-bottom:12px">Get notified about new posts and community updates — even when you\'re away.</p>';
+        var sb=mkEl('button',{textContent:'Enable notifications'},{width:'100%',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'10px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
+        sb.onclick=async function(){
+          sb.disabled=true;sb.textContent='...';
+          var perm=await Notification.requestPermission();
+          if(perm!=='granted'){sb.textContent='Blocked — check browser settings';return;}
+          var ok=await subscribe();
+          refresh(ok);
+        };
+        panelBody.append(sb);
+      }
+    }
+
+    btn.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
+    panel.style.flexDirection='column';
+
+    isSubscribed().then(refresh);
+    wrap.append(panel,btn);
+    document.body.append(wrap);
+  }
+
+  /* ── Install Prompt ── */
+  function mountInstall(){
+    if(localStorage.getItem(DISMISSED_INSTALL))return;
+
+    var card=mkEl('div',null,{display:'none',position:'fixed',bottom:'88px',right:'24px',zIndex:'999998',width:'280px',background:'#111',border:'1px solid #333',borderRadius:'16px',boxShadow:'0 8px 32px rgba(0,0,0,.5)',padding:'16px',fontFamily:'system-ui,-apple-system,sans-serif',color:'#e5e5e5',fontSize:'13px'});
+
+    function dismiss(){localStorage.setItem(DISMISSED_INSTALL,'1');card.remove();}
+
+    var head=mkEl('div',null,{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'});
+    var iconWrap=mkEl('div',null,{width:'36px',height:'36px',borderRadius:'8px',background:'#1a0a30',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:'0'});
+    if(ICON){var ic=mkEl('img',{src:ICON},{width:'28px',height:'28px',borderRadius:'6px',objectFit:'cover'});iconWrap.append(ic);}
+    else{iconWrap.textContent='📲';}
+    var titleEl=mkEl('span',{textContent:'Install App'},{fontWeight:'600',fontSize:'14px'});
+    var xBtn=mkEl('button',{textContent:'✕'},{marginLeft:'auto',background:'none',border:'none',color:'#888',cursor:'pointer',fontSize:'14px',lineHeight:'1'});
+    xBtn.onclick=dismiss;
+    head.append(iconWrap,titleEl,xBtn);
+
+    var desc=mkEl('p',{textContent:'Add to your home screen for a faster, app-like experience.'},{color:'#888',fontSize:'12px',marginBottom:'12px',lineHeight:'1.5'});
+
+    var row=mkEl('div',null,{display:'flex',gap:'8px'});
+    var instBtn=mkEl('button',{textContent:'Install'},{flex:'1',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'9px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
+    var notNow=mkEl('button',{textContent:'Not now'},{background:'none',border:'none',color:'#666',cursor:'pointer',fontSize:'12px',padding:'9px 4px'});
+    notNow.onclick=dismiss;
+    row.append(instBtn,notNow);
+    card.append(head,desc,row);
+    document.body.append(card);
+
+    window.addEventListener('beforeinstallprompt',function(e){
+      e.preventDefault();dp=e;
+      card.style.display='block';
+    });
+
+    instBtn.onclick=async function(){
+      if(!dp)return;
+      instBtn.disabled=true;
+      await dp.prompt();
+      var r=await dp.userChoice;
+      if(r.outcome==='accepted')card.remove();
+      else dismiss();
+    };
+  }
+
+  /* ── Init ── */
+  document.addEventListener('DOMContentLoaded',function(){
+    registerSW();
+    if(CFG.bell)mountBell();
+    if(CFG.install)mountInstall();
+  });
+
+})();`;
+
+  res.setHeader("Content-Type", "application/javascript");
+  res.setHeader("Cache-Control", "no-cache"); // always fresh so toggle changes take effect
+  res.send(js);
+});
+
 // ── PWA manifest + icons (public — browsers fetch these directly) ─────────────
 
 // Serve web app manifest dynamically per project
