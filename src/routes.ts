@@ -382,9 +382,13 @@ router.get("/widgets.js", async (req, res) => {
     btn.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
     panel.style.flexDirection='column';
 
-    isSubscribed().then(refresh);
-    wrap.append(panel,btn);
-    document.body.append(wrap);
+    // Only show the bell to users who are not yet subscribed
+    isSubscribed().then(function(s){
+      if(s)return;
+      refresh(false);
+      wrap.append(panel,btn);
+      document.body.append(wrap);
+    });
   }
 
   /* ── Install Prompt ── */
