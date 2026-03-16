@@ -69,12 +69,12 @@ router.delete("/admin/projects/:id", requireAdminKey, async (req, res) => {
 // Save PWA manifest config for a project
 router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
   const schema = z.object({
-    pwaName: z.string().nullable(),
-    pwaShortName: z.string().nullable(),
-    pwaThemeColor: z.string().nullable(),
-    pwaBgColor: z.string().nullable(),
-    pwaDisplay: z.enum(["standalone", "fullscreen", "minimal-ui", "browser"]).nullable(),
-    pwaUrl: z.string().url().nullable(),
+    pwaName: z.string().nullable().optional(),
+    pwaShortName: z.string().nullable().optional(),
+    pwaThemeColor: z.string().nullable().optional(),
+    pwaBgColor: z.string().nullable().optional(),
+    pwaDisplay: z.enum(["standalone", "fullscreen", "minimal-ui", "browser"]).nullable().optional(),
+    pwaUrl: z.string().url().nullable().optional(),
     pwaDescription: z.string().nullable().optional(),
     pwaYoutubeUrl: z.string().url().nullable().optional(),
     installSlug: z.string().regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers and hyphens").nullable().optional(),
