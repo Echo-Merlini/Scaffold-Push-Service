@@ -236,7 +236,8 @@ router.get("/widgets.js", async (req, res) => {
 
   /* ── Subscribe ── */
   async function subscribe(){
-    if(!('serviceWorker' in navigator && 'PushManager' in window))return false;
+    if(!('serviceWorker' in navigator && 'PushManager' in window))
+      return {ok:false,error:'Push notifications are not supported in this browser.'};
     try{
       var reg=await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
@@ -246,8 +247,15 @@ router.get("/widgets.js", async (req, res) => {
       var vj=await vr.json();
       var sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(vj.publicKey)});
       await fetch(PUSH+'/subscribe',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':KEY},body:JSON.stringify(sub.toJSON())});
-      return true;
-    }catch(e){return false;}
+      return {ok:true};
+    }catch(e){
+      var msg=e&&e.message?e.message:String(e);
+      // pushManager.subscribe fails in Brave when Google services are disabled
+      var hint=msg.toLowerCase().indexOf('push service')!==-1||msg.toLowerCase().indexOf('registration failed')!==-1
+        ?'In Brave: Settings \u2192 Privacy \u2192 enable \u201cUse Google services for push messaging\u201d.'
+        :'Check that notifications are allowed for this site in your browser settings.';
+      return {ok:false,error:hint};
+    }
   }
 
   async function unsubscribe(){
@@ -337,16 +345,37 @@ router.get("/widgets.js", async (req, res) => {
         btn.style.color='#aaa';
         btn.innerHTML='&#x1F515;';
         btn.title='Enable notifications';
+
+        var blocked=typeof Notification!=='undefined'&&Notification.permission==='denied';
         panelBody.innerHTML='<p style="color:#888;font-size:12px;margin-bottom:12px">Get notified about new posts and community updates — even when you\\'re away.</p>';
-        var sb=mkEl('button',{textContent:'Enable notifications'},{width:'100%',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'10px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
-        sb.onclick=async function(){
-          sb.disabled=true;sb.textContent='...';
-          var perm=await Notification.requestPermission();
-          if(perm!=='granted'){sb.textContent='Blocked — check browser settings';return;}
-          var ok=await subscribe();
-          refresh(ok);
-        };
-        panelBody.append(sb);
+
+        if(blocked){
+          // Permission already denied — requesting again shows nothing; tell the user how to fix it
+          panelBody.innerHTML+='<p style="color:#f87171;font-size:11px;margin-bottom:10px">&#x26A0; Notifications are blocked. To enable them, click the lock icon in your browser\\'s address bar and allow notifications for this site.</p>';
+          var sb=mkEl('button',{textContent:'Notifications blocked'},{width:'100%',background:'#333',border:'none',borderRadius:'10px',color:'#888',padding:'10px',cursor:'default',fontWeight:'600',fontSize:'13px'});
+          panelBody.append(sb);
+        } else {
+          var sb=mkEl('button',{textContent:'Enable notifications'},{width:'100%',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'10px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
+          var errEl=mkEl('p',{textContent:''},{color:'#f87171',fontSize:'11px',marginTop:'8px',lineHeight:'1.5',display:'none'});
+          sb.onclick=async function(){
+            sb.disabled=true;sb.textContent='...';errEl.style.display='none';
+            var perm=await Notification.requestPermission();
+            if(perm!=='granted'){
+              sb.disabled=false;sb.textContent='Enable notifications';
+              errEl.textContent='Permission denied. Click the lock icon in your address bar to allow notifications.';
+              errEl.style.display='block';
+              return;
+            }
+            var result=await subscribe();
+            if(result.ok){refresh(true);}
+            else{
+              sb.disabled=false;sb.textContent='Enable notifications';
+              errEl.textContent=result.error||'Subscription failed — try again.';
+              errEl.style.display='block';
+            }
+          };
+          panelBody.append(sb,errEl);
+        }
       }
     }
 
@@ -431,10 +460,19 @@ router.get("/widgets.js", async (req, res) => {
       subBtn.onclick=async function(){
         subBtn.disabled=true;subBtn.textContent='...';
         var perm=await Notification.requestPermission();
-        if(perm!=='granted'){dismiss();return;}
-        var ok=await subscribe();
-        if(ok){subBtn.textContent='✓';setTimeout(function(){bar.remove();},1200);}
-        else{dismiss();}
+        if(perm!=='granted'){
+          subBtn.textContent='Blocked';
+          setTimeout(function(){dismiss();},1500);
+          return;
+        }
+        var result=await subscribe();
+        if(result.ok){subBtn.textContent='✓';setTimeout(function(){bar.remove();},1200);}
+        else{
+          subBtn.disabled=false;subBtn.textContent='Subscribe';
+          var errEl=bar.querySelector('.pws-err');
+          if(!errEl){errEl=mkEl('div',{textContent:result.error||'Failed — try again'},{fontSize:'11px',color:'#f87171',marginTop:'4px',width:'100%',order:'10'});bar.append(errEl);}
+          else{errEl.textContent=result.error||'Failed — try again';}
+        }
       };
 
       bar.append(info,subBtn,xBtn);
