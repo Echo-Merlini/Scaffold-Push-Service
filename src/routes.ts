@@ -398,6 +398,49 @@ router.get("/widgets.js", async (req, res) => {
     };
   }
 
+  /* ── Subscribe Banner ── */
+  function mountBanner(){
+    var DISMISSED='_pws_sub_banner';
+    if(localStorage.getItem(DISMISSED))return;
+    if(!('serviceWorker' in navigator&&'PushManager' in window))return;
+
+    isSubscribed().then(function(already){
+      if(already)return;
+
+      var bar=mkEl('div',null,{position:'fixed',top:'0',left:'0',right:'0',zIndex:'999996',
+        background:'#111',borderBottom:'1px solid #222',
+        display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',
+        fontFamily:'system-ui,-apple-system,sans-serif',
+        transform:'translateY(-100%)',transition:'transform .35s cubic-bezier(.4,0,.2,1)'});
+
+      function dismiss(){localStorage.setItem(DISMISSED,'1');bar.style.transform='translateY(-100%)';setTimeout(function(){bar.remove();},350);}
+
+      var info=mkEl('div',null,{flex:'1',minWidth:'0'});
+      var nm=mkEl('div',{textContent:'Stay in the loop'},{fontWeight:'700',fontSize:'13px',color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'});
+      var sub=mkEl('div',{textContent:'Get notified about new updates'},{fontSize:'11px',color:'#888',marginTop:'2px'});
+      info.append(nm,sub);
+
+      var subBtn=mkEl('button',{textContent:'Subscribe'},{background:THEME,border:'none',borderRadius:'10px',
+        color:'#fff',padding:'7px 14px',cursor:'pointer',fontWeight:'700',fontSize:'12px',flexShrink:'0',whiteSpace:'nowrap'});
+      var xBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#555',
+        cursor:'pointer',fontSize:'16px',padding:'4px',flexShrink:'0',lineHeight:'1'});
+      xBtn.onclick=dismiss;
+
+      subBtn.onclick=async function(){
+        subBtn.disabled=true;subBtn.textContent='...';
+        var perm=await Notification.requestPermission();
+        if(perm!=='granted'){dismiss();return;}
+        var ok=await subscribe();
+        if(ok){subBtn.textContent='✓';setTimeout(function(){bar.remove();},1200);}
+        else{dismiss();}
+      };
+
+      bar.append(info,subBtn,xBtn);
+      document.body.append(bar);
+      requestAnimationFrame(function(){requestAnimationFrame(function(){bar.style.transform='translateY(0)';});});
+    });
+  }
+
   /* ── Installation Banner ── */
   function mountInstallBanner(){
     var DISMISSED_BANNER='_pws_ibanner';
@@ -455,6 +498,7 @@ router.get("/widgets.js", async (req, res) => {
   document.addEventListener('DOMContentLoaded',function(){
     registerSW();
     if(CFG.bell)mountBell();
+    if(CFG.banner)mountBanner();
     if(CFG.install)mountInstall();
     if(CFG.installBanner)mountInstallBanner();
   });
@@ -693,21 +737,35 @@ router.get("/install/:slugOrId", async (req, res) => {
     }
     .open-btn:hover{opacity:.7}
 
-    /* iOS tip */
-    .ios-tip{
-      display:none;
-      padding:1rem 1.1rem;
-      background:${iosTipBg};
-      border-radius:12px;
-      font-size:.82rem;
-      color:${iosTipColor};
-      line-height:1.7;
-      text-align:center;
-    }
-    .ios-tip strong{color:${textColor}}
-
     /* Divider */
     .divider{width:40px;height:1px;background:${dividerColor};margin:.25rem auto}
+
+    /* iOS modal overlay */
+    .ios-overlay{
+      display:none;position:fixed;inset:0;z-index:9999;
+      background:rgba(0,0,0,.55);
+      align-items:flex-end;justify-content:center;
+    }
+    .ios-overlay.open{display:flex;}
+    .ios-sheet{
+      background:${isDark ? "#1c1c1e" : "#ffffff"};
+      border-radius:20px 20px 0 0;
+      padding:1.5rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
+      width:100%;max-width:520px;
+      font-family:system-ui,-apple-system,sans-serif;
+    }
+    .ios-sheet-handle{width:36px;height:4px;border-radius:2px;background:${isDark ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.15)"};margin:0 auto 1.25rem;}
+    .ios-sheet h2{font-size:1rem;font-weight:700;color:${textColor};text-align:center;margin-bottom:1.25rem;}
+    .ios-app-row{display:flex;align-items:center;gap:.85rem;padding:.85rem 1rem;background:${iosTipBg};border-radius:14px;margin-bottom:1.25rem;}
+    .ios-app-icon{width:52px;height:52px;border-radius:13px;object-fit:cover;flex-shrink:0;}
+    .ios-app-name{font-size:.9rem;font-weight:600;color:${textColor};}
+    .ios-app-domain{font-size:.75rem;color:${mutedColor};margin-top:.15rem;}
+    .ios-steps{display:flex;flex-direction:column;gap:.85rem;margin-bottom:1.5rem;}
+    .ios-step{display:flex;align-items:center;gap:.85rem;}
+    .ios-step-num{width:28px;height:28px;border-radius:50%;background:${themeColor};color:#fff;font-size:.8rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .ios-step-text{font-size:.88rem;color:${textColor};line-height:1.4;}
+    .ios-step-text em{font-style:normal;font-weight:600;}
+    .ios-close{width:100%;padding:.85rem;background:${iosTipBg};border:none;border-radius:12px;font-size:.95rem;font-weight:600;color:${textColor};cursor:pointer;}
   </style>
 </head>
 <body>
@@ -731,11 +789,39 @@ router.get("/install/:slugOrId", async (req, res) => {
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Install
       </button>
-      <div class="ios-tip" id="ios-tip">
-        Tap <strong>Share</strong> <svg style="vertical-align:middle;display:inline" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-        then <strong>Add to Home Screen</strong>
-      </div>
       ${appUrl !== "#" ? `<a class="open-btn" href="${appUrl}">Open in browser</a>` : ""}
+    </div>
+  </div>
+
+  <!-- iOS install instructions modal -->
+  <div class="ios-overlay" id="ios-overlay" onclick="closeIosModal(event)">
+    <div class="ios-sheet">
+      <div class="ios-sheet-handle"></div>
+      <h2>Add to Home Screen</h2>
+      <div class="ios-app-row">
+        ${icon
+          ? `<img src="${icon}" class="ios-app-icon" alt="${appName}"/>`
+          : `<div class="ios-app-icon" style="background:${themeColor};display:flex;align-items:center;justify-content:center;font-size:1.5rem">📱</div>`}
+        <div>
+          <div class="ios-app-name">${appName}</div>
+          <div class="ios-app-domain">${appUrl.replace(/^https?:\/\//, "") || "App"}</div>
+        </div>
+      </div>
+      <div class="ios-steps">
+        <div class="ios-step">
+          <div class="ios-step-num">1</div>
+          <div class="ios-step-text">Tap the <em>Share</em> button <svg style="vertical-align:middle" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> in the browser toolbar</div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-num">2</div>
+          <div class="ios-step-text">Scroll down and tap <em>Add to Home Screen</em></div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-num">3</div>
+          <div class="ios-step-text">Tap <em>Add</em> in the top-right corner</div>
+        </div>
+      </div>
+      <button class="ios-close" onclick="closeIosModal()">Got it</button>
     </div>
   </div>
 
@@ -757,10 +843,11 @@ router.get("/install/:slugOrId", async (req, res) => {
     });
 
     var btn = document.getElementById('install-btn');
-    var tip = document.getElementById('ios-tip');
+    var overlay = document.getElementById('ios-overlay');
 
-    if (isAppleMobile) {
-      tip.style.display = 'block';
+    function openIosModal() { overlay.classList.add('open'); }
+    function closeIosModal(e) {
+      if (!e || e.target === overlay) overlay.classList.remove('open');
     }
 
     function triggerInstall() {
@@ -775,9 +862,8 @@ router.get("/install/:slugOrId", async (req, res) => {
           }
         });
       } else if (isAppleMobile) {
-        tip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        openIosModal();
       } else {
-        // Prompt not available yet — open app so user can install from there
         window.open('${appUrl}', '_blank');
       }
     }
