@@ -572,6 +572,22 @@ router.get("/install/:slugOrId", async (req, res) => {
     }
   }
 
+  // Determine if bgColor is dark so we can set appropriate text colors
+  function hexLuminance(hex: string): number {
+    const h = hex.replace("#", "").padEnd(6, "0");
+    const r = parseInt(h.slice(0, 2), 16) / 255;
+    const g = parseInt(h.slice(2, 4), 16) / 255;
+    const b = parseInt(h.slice(4, 6), 16) / 255;
+    const lin = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  }
+  const isDark = hexLuminance(bgColor) < 0.35;
+  const textColor    = isDark ? "#f0f0f0" : "#111111";
+  const mutedColor   = isDark ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.45)";
+  const iosTipBg     = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.05)";
+  const iosTipColor  = isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.55)";
+  const dividerColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -579,83 +595,145 @@ router.get("/install/:slugOrId", async (req, res) => {
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Install ${appName}</title>
   <link rel="manifest" href="${manifestUrl}">
-  <meta name="theme-color" content="${themeColor}">
+  <meta name="theme-color" content="${bgColor}">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="${appName}">
   ${icon ? `<link rel="apple-touch-icon" href="${icon}">` : ""}
-  <meta property="og:title" content="Install ${appName}"/>
-  <meta property="og:description" content="${appDesc || `Add ${appName} to your home screen`}"/>
+  <meta property="og:title" content="${appName}"/>
+  <meta property="og:description" content="${appDesc || `Install ${appName} on your device`}"/>
   ${icon ? `<meta property="og:image" content="${icon}"/>` : ""}
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:system-ui,-apple-system,sans-serif;background:${bgColor};color:#111;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem 4rem}
-    .card{background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,.12);width:100%;max-width:480px;overflow:hidden}
-    .hero{background:${themeColor};padding:2.5rem 2rem 1.5rem;display:flex;flex-direction:column;align-items:center;gap:1rem}
-    .app-icon{width:96px;height:96px;border-radius:22px;box-shadow:0 4px 20px rgba(0,0,0,.3);object-fit:cover}
-    .app-icon-placeholder{width:96px;height:96px;border-radius:22px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:2.5rem}
-    .app-name{font-size:1.5rem;font-weight:700;color:#fff;text-align:center}
-    .app-url{font-size:.78rem;color:rgba(255,255,255,.65);text-align:center}
-    .body{padding:1.5rem}
-    .desc{font-size:.9rem;color:#444;line-height:1.6;margin-bottom:1.5rem}
-    .screenshots{overflow-x:auto;display:flex;gap:.75rem;padding-bottom:.5rem;margin:0 -1.5rem 1.5rem;padding-left:1.5rem;padding-right:1.5rem;scrollbar-width:none}
+    html,body{height:100%}
+    body{
+      font-family:system-ui,-apple-system,sans-serif;
+      background:${bgColor};
+      color:${textColor};
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+    }
+    .wrap{width:100%;max-width:520px;padding:0 1.25rem;display:flex;flex-direction:column;flex:1}
+
+    /* Hero */
+    .hero{display:flex;flex-direction:column;align-items:center;padding:3.5rem 0 2rem;text-align:center}
+    .app-icon{width:108px;height:108px;border-radius:26px;object-fit:cover;box-shadow:0 8px 32px rgba(0,0,0,.28);margin-bottom:1.25rem}
+    .app-icon-placeholder{width:108px;height:108px;border-radius:26px;background:${themeColor};display:flex;align-items:center;justify-content:center;font-size:3rem;margin-bottom:1.25rem}
+    .app-name{font-size:1.75rem;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-bottom:.4rem}
+    .app-url{font-size:.78rem;color:${mutedColor}}
+
+    /* Description */
+    .desc{font-size:.95rem;line-height:1.65;color:${mutedColor};text-align:center;padding:1.5rem 0}
+
+    /* YouTube */
+    .yt-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:16px;margin-bottom:2rem}
+    .yt-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+
+    /* Screenshots */
+    .screenshots-wrap{margin:0 -1.25rem 2rem}
+    .screenshots{overflow-x:auto;display:flex;gap:.75rem;padding:.25rem 1.25rem .75rem;scrollbar-width:none}
     .screenshots::-webkit-scrollbar{display:none}
-    .screenshot{height:220px;border-radius:12px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.12);object-fit:cover}
-    .install-btn{display:flex;align-items:center;justify-content:center;gap:.6rem;width:100%;padding:.9rem;background:${themeColor};color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;transition:opacity .15s;text-decoration:none}
-    .install-btn:hover{opacity:.9}
-    .ios-tip{display:none;margin-top:1rem;padding:.85rem 1rem;background:#f5f5f5;border-radius:10px;font-size:.8rem;color:#555;line-height:1.6;text-align:center}
-    .open-btn{display:block;margin-top:.75rem;text-align:center;font-size:.82rem;color:#888;text-decoration:none}
-    .powered{margin-top:2rem;font-size:.7rem;color:#bbb;text-align:center}
-    .yt-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;margin-bottom:1.25rem}
-    .yt-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;border-radius:12px}
+    .screenshot{height:240px;border-radius:14px;flex-shrink:0;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+
+    /* CTA */
+    .cta{padding-bottom:2.5rem;display:flex;flex-direction:column;align-items:stretch;gap:.75rem;margin-top:auto}
+    .install-btn{
+      display:flex;align-items:center;justify-content:center;gap:.55rem;
+      padding:1rem 1.5rem;
+      background:${themeColor};color:#fff;
+      border:none;border-radius:14px;
+      font-size:1.05rem;font-weight:700;letter-spacing:.01em;
+      cursor:pointer;transition:transform .1s,opacity .15s;
+      text-decoration:none;
+    }
+    .install-btn:active{transform:scale(.97)}
+    .install-btn:disabled{opacity:.45;cursor:default;transform:none}
+    .open-btn{
+      text-align:center;font-size:.82rem;color:${mutedColor};
+      text-decoration:none;padding:.4rem;
+      transition:opacity .15s;
+    }
+    .open-btn:hover{opacity:.7}
+
+    /* iOS tip */
+    .ios-tip{
+      display:none;
+      padding:1rem 1.1rem;
+      background:${iosTipBg};
+      border-radius:12px;
+      font-size:.82rem;
+      color:${iosTipColor};
+      line-height:1.7;
+      text-align:center;
+    }
+    .ios-tip strong{color:${textColor}}
+
+    /* Divider */
+    .divider{width:40px;height:1px;background:${dividerColor};margin:.25rem auto}
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="wrap">
     <div class="hero">
-      ${icon ? `<img src="${icon}" class="app-icon" alt="${appName}"/>` : `<div class="app-icon-placeholder">📱</div>`}
-      <div>
-        <div class="app-name">${appName}</div>
-        <div class="app-url">${appUrl.replace(/^https?:\/\//, "")}</div>
-      </div>
+      ${icon
+        ? `<img src="${icon}" class="app-icon" alt="${appName}"/>`
+        : `<div class="app-icon-placeholder">📱</div>`}
+      <h1 class="app-name">${appName}</h1>
+      ${appUrl !== "#" ? `<div class="app-url">${appUrl.replace(/^https?:\/\//, "")}</div>` : ""}
     </div>
-    <div class="body">
-      ${appDesc ? `<p class="desc">${appDesc}</p>` : ""}
-      ${youtubeEmbed ? `<div class="yt-wrap"><iframe src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe></div>` : ""}
-      ${shots.length ? `<div class="screenshots">${screenshotHtml}</div>` : ""}
+
+    ${appDesc ? `<p class="desc">${appDesc}</p>` : ""}
+
+    ${youtubeEmbed ? `<div class="yt-wrap"><iframe src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe></div>` : ""}
+
+    ${shots.length ? `<div class="screenshots-wrap"><div class="screenshots">${screenshotHtml}</div></div>` : ""}
+
+    <div class="cta">
       <button class="install-btn" id="install-btn" onclick="triggerInstall()">
-        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Add to Home Screen
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Install
       </button>
       <div class="ios-tip" id="ios-tip">
-        Tap <strong>Share</strong> (the box with arrow) then <strong>Add to Home Screen</strong> in the menu.
+        Tap <strong>Share</strong> <svg style="vertical-align:middle;display:inline" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        then <strong>Add to Home Screen</strong>
       </div>
-      <a class="open-btn" href="${appUrl}">Open in browser →</a>
+      ${appUrl !== "#" ? `<a class="open-btn" href="${appUrl}">Open in browser</a>` : ""}
     </div>
   </div>
-  <div class="powered">Powered by Push Service</div>
 
   <script>
     var dp = null;
-    var isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-    var isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-    if (isInstalled) {
-      document.getElementById('install-btn').textContent = 'Already installed ✓';
-      document.getElementById('install-btn').disabled = true;
-      document.getElementById('install-btn').style.opacity = '.5';
-    } else if (isIos) {
-      document.getElementById('ios-tip').style.display = 'block';
-      document.getElementById('install-btn').innerHTML = '<span>Add to Home Screen</span>';
-    }
+    var isAppleMobile = (/apple/i.test(navigator.vendor)) && navigator.maxTouchPoints > 0;
+    var isInstalled = window.matchMedia('(display-mode:standalone)').matches || !!window.navigator.standalone;
 
     window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault(); dp = e;
     });
 
+    var btn = document.getElementById('install-btn');
+    var tip = document.getElementById('ios-tip');
+
+    if (isInstalled) {
+      btn.textContent = 'Already installed ✓';
+      btn.disabled = true;
+    } else if (isAppleMobile) {
+      tip.style.display = 'block';
+    }
+
     function triggerInstall() {
-      if (dp) { dp.prompt(); dp.userChoice.then(function(r){ if(r.outcome==='accepted') window.location.href='${appUrl}'; }); }
-      else if (isIos) { document.getElementById('ios-tip').style.display = 'block'; }
-      else { window.location.href = '${appUrl}'; }
+      if (dp) {
+        btn.disabled = true;
+        dp.prompt();
+        dp.userChoice.then(function(r) {
+          if (r.outcome === 'accepted') window.location.href = '${appUrl}';
+          else btn.disabled = false;
+        });
+      } else if (isAppleMobile) {
+        tip.style.display = tip.style.display === 'none' ? 'block' : 'block';
+      } else {
+        window.location.href = '${appUrl}';
+      }
     }
 
     if ('serviceWorker' in navigator) {
