@@ -537,6 +537,43 @@ router.get("/pwa/screenshot/:id.png", async (req, res) => {
   res.send(Buffer.from(base64, "base64"));
 });
 
+// Same-origin manifest for install page — start_url stays on the push service
+// so beforeinstallprompt fires. When opened in standalone, the page redirects to the real app.
+router.get("/pwa/install-manifest/:slugOrId", async (req, res) => {
+  const param = req.params.slugOrId;
+  let project = await getProjectBySlug(param);
+  if (!project) project = await getProjectById(param);
+  if (!project) { res.status(404).json({ error: "not found" }); return; }
+
+  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
+  const base  = `${proto}://${req.get("host")}`;
+  const installPath = `/install/${(project as any).installSlug || project.id}`;
+
+  const icons: object[] = [];
+  if ((project as any).logoSvg) {
+    icons.push({ src: `${base}/pwa/icon/${project.id}/icon.svg`, sizes: "any", type: "image/svg+xml", purpose: "any" });
+  }
+  if (project.logo) {
+    icons.push({ src: `${base}/pwa/icon/${project.id}/192.png`, sizes: "192x192", type: "image/png", purpose: "any" });
+  }
+  if (project.logo512) {
+    icons.push({ src: `${base}/pwa/icon/${project.id}/512.png`, sizes: "512x512", type: "image/png", purpose: "any" });
+    icons.push({ src: `${base}/pwa/icon/${project.id}/512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" });
+  }
+
+  res.setHeader("Content-Type", "application/manifest+json");
+  res.json({
+    name:             project.pwaName      || project.name,
+    short_name:       project.pwaShortName || project.name.slice(0, 12),
+    start_url:        installPath,
+    scope:            "/install/",
+    display:          project.pwaDisplay    || "standalone",
+    theme_color:      project.pwaThemeColor || "#000000",
+    background_color: project.pwaBgColor    || "#ffffff",
+    icons,
+  });
+});
+
 // Installation page — resolve by custom slug OR project ID
 router.get("/install/:slugOrId", async (req, res) => {
   const param = req.params.slugOrId;
@@ -557,7 +594,7 @@ router.get("/install/:slugOrId", async (req, res) => {
   const youtubeUrl = (project as any).pwaYoutubeUrl  || "";
   const themeColor = (project as any).pwaThemeColor  || "#000000";
   const bgColor    = (project as any).pwaBgColor     || "#ffffff";
-  const manifestUrl = `${base}/pwa/manifest.json?key=${project.apiKey}`;
+  const installManifestUrl = `${base}/pwa/install-manifest/${(project as any).installSlug || project.id}`;
 
   const screenshotHtml = shots.map(s =>
     `<img src="${base}/pwa/screenshot/${s.id}.png" class="screenshot" alt="${s.label || appName} screenshot" />`
@@ -594,7 +631,7 @@ router.get("/install/:slugOrId", async (req, res) => {
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Install ${appName}</title>
-  <link rel="manifest" href="${manifestUrl}">
+  <link rel="manifest" href="${installManifestUrl}">
   <meta name="theme-color" content="${bgColor}">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="${appName}">
@@ -705,19 +742,24 @@ router.get("/install/:slugOrId", async (req, res) => {
   <script>
     var dp = null;
     var isAppleMobile = (/apple/i.test(navigator.vendor)) && navigator.maxTouchPoints > 0;
-    var isInstalled = window.matchMedia('(display-mode:standalone)').matches || !!window.navigator.standalone;
+    var isStandalone  = window.matchMedia('(display-mode:standalone)').matches || !!window.navigator.standalone;
+
+    // Opened from home screen — skip the install page and go straight to the app
+    if (isStandalone && '${appUrl}' !== '#') {
+      window.location.replace('${appUrl}');
+    }
 
     window.addEventListener('beforeinstallprompt', function(e) {
-      e.preventDefault(); dp = e;
+      e.preventDefault();
+      dp = e;
+      // Show the install button now that we have the prompt
+      document.getElementById('install-btn').disabled = false;
     });
 
     var btn = document.getElementById('install-btn');
     var tip = document.getElementById('ios-tip');
 
-    if (isInstalled) {
-      btn.textContent = 'Already installed ✓';
-      btn.disabled = true;
-    } else if (isAppleMobile) {
+    if (isAppleMobile) {
       tip.style.display = 'block';
     }
 
@@ -726,18 +768,31 @@ router.get("/install/:slugOrId", async (req, res) => {
         btn.disabled = true;
         dp.prompt();
         dp.userChoice.then(function(r) {
-          if (r.outcome === 'accepted') window.location.href = '${appUrl}';
-          else btn.disabled = false;
+          if (r.outcome === 'accepted') {
+            btn.textContent = 'Installed ✓';
+          } else {
+            btn.disabled = false;
+          }
         });
       } else if (isAppleMobile) {
-        tip.style.display = tip.style.display === 'none' ? 'block' : 'block';
+        tip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       } else {
-        window.location.href = '${appUrl}';
+        // Prompt not available yet — open app so user can install from there
+        window.open('${appUrl}', '_blank');
       }
     }
 
+    // Register same-origin SW (required for beforeinstallprompt to fire).
+    // If it's the very first install, reload once it activates so the prompt fires.
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(function(){});
+      navigator.serviceWorker.register('/install-sw.js', { scope: '/install/' })
+        .then(function(reg) {
+          if (reg.installing) {
+            reg.installing.addEventListener('statechange', function() {
+              if (this.state === 'activated') window.location.reload();
+            });
+          }
+        }).catch(function(){});
     }
   </script>
 </body>
