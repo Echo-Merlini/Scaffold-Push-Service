@@ -495,6 +495,11 @@
         <div class="card-header"><span class="card-title">2. Register service worker</span></div>
         <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Add this file to your project's <code>public/</code> folder:</p>
         <pre>// public/sw.js
+// Required for PWA installability (beforeinstallprompt won't fire without a fetch handler)
+self.addEventListener("fetch", (event) => {
+  event.respondWith(fetch(event.request).catch(() => new Response("", { status: 503 })));
+});
+
 self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : {};
   event.waitUntil(
@@ -1782,6 +1787,10 @@ await fetch("${BASE}/notify", {
   function wcBuildSw() {
     return [
       '// public/sw.js — place in your project\'s public/ folder',
+      '// The fetch handler is required for PWA installability (beforeinstallprompt won\'t fire without it)',
+      'self.addEventListener("fetch", function(e) {',
+      '  e.respondWith(fetch(e.request).catch(function(){ return new Response("", { status: 503 }); }));',
+      '});',
       'self.addEventListener("push", function(e) {',
       '  var d = e.data ? e.data.json() : {};',
       '  e.waitUntil(self.registration.showNotification(d.title || "Notification", {',
