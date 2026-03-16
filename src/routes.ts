@@ -206,7 +206,9 @@ router.get("/widgets.js", async (req, res) => {
   var INSTALL_URL='${installUrl}';
   var CFG=${JSON.stringify(widgetCfg)};
   var DISMISSED_INSTALL='_pws_install_dismissed';
+  // Capture beforeinstallprompt as early as possible — it can fire before DOMContentLoaded
   var dp=null;
+  window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();dp=e;});
 
   /* ── Helpers ── */
   function urlB64(b){
@@ -383,10 +385,10 @@ router.get("/widgets.js", async (req, res) => {
     card.append(head,desc,row);
     document.body.append(card);
 
-    window.addEventListener('beforeinstallprompt',function(e){
-      e.preventDefault();dp=e;
-      card.style.display='block';
-    });
+    // dp is captured early (top-level listener) — show card if prompt is already available
+    if(dp)card.style.display='block';
+    // Also watch for it arriving late (e.g. after SW activates)
+    window.addEventListener('beforeinstallprompt',function(){card.style.display='block';});
 
     instBtn.onclick=async function(){
       if(!dp)return;
@@ -476,18 +478,14 @@ router.get("/widgets.js", async (req, res) => {
     document.body.append(banner);
     requestAnimationFrame(function(){requestAnimationFrame(function(){banner.style.transform='translateY(0)';});});
 
-    var deferred=null;
-    window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferred=e;});
-
+    // dp is the shared top-level deferred prompt
     instBtn.onclick=async function(){
-      if(deferred){
+      if(dp){
         instBtn.disabled=true;
-        await deferred.prompt();
-        var r=await deferred.userChoice;
+        await dp.prompt();
+        var r=await dp.userChoice;
         if(r.outcome==='accepted'){banner.remove();return;}
         dismiss();
-      }else if(isAppleMobile){
-        window.location.href=INSTALL_URL;
       }else{
         window.location.href=INSTALL_URL;
       }
