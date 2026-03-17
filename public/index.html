@@ -1479,7 +1479,7 @@ await fetch("${BASE}/notify", {
     { id:'bell', widgetKey:'bell', title:'Bell Widget', desc:'Floating subscribe/unsubscribe button fixed to a corner of the page',
       thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><circle cx="65" cy="40" r="9" fill="#16a34a"/><path d="M65 36.5a3.5 3.5 0 0 0-3.5 3.5c0 3.5-1.5 5-1.5 5h7s-1.5-1.5-1.5-5a3.5 3.5 0 0 0-3.5-3.5z" fill="white"/><circle cx="65" cy="47" r="1" fill="white"/></svg>',
       fields:[
-        {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a'},
+        {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a', cfgKey:'bellColor'},
         {key:'position', label:'Position', type:'select', opts:['bottom-right','bottom-left'], def:'bottom-right'},
       ]
     },
@@ -1489,13 +1489,13 @@ await fetch("${BASE}/notify", {
         {key:'heading', label:'Heading', type:'text', def:'Stay in the loop'},
         {key:'body', label:'Body text', type:'text', def:'Enable push notifications to get updates instantly.'},
         {key:'btnText', label:'Button label', type:'text', def:'Enable'},
-        {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a'},
+        {key:'accentColor', label:'Accent color', type:'color', def:'#16a34a', cfgKey:'bannerColor'},
       ]
     },
     { id:'installBanner', widgetKey:'installBanner', title:'Installation Banner', desc:'Persistent bottom bar prompting users to install — links to your install page on iOS, triggers native prompt on Android/Chrome',
       thumb:'<svg viewBox="0 0 80 52" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="78" height="50" rx="3" fill="#0d0d0d" stroke="#2a2a2a"/><rect x="6" y="6" width="68" height="5" rx="2" fill="#1e1e1e"/><rect x="1" y="38" width="78" height="13" rx="0" fill="#111" stroke="#222" stroke-width=".8"/><rect x="8" y="41" width="8" height="8" rx="2" fill="#333"/><rect x="20" y="42" width="22" height="2.5" rx="1" fill="#555"/><rect x="20" y="46" width="14" height="2" rx="1" fill="#333"/><rect x="55" y="41.5" width="16" height="7" rx="3" fill="#16a34a"/></svg>',
       fields:[
-        {key:'accentColor', label:'Button color', type:'color', def:'#16a34a'},
+        {key:'accentColor', label:'Button color', type:'color', def:'#16a34a', cfgKey:'installBannerColor'},
       ]
     },
     { id:'pwa', widgetKey:'install', title:'PWA Install Prompt', desc:'Polished "Add to Home Screen" card — replaces the browser default',
@@ -1503,7 +1503,7 @@ await fetch("${BASE}/notify", {
       fields:[
         {key:'cardTitle', label:'Title', type:'text', def:'Install App'},
         {key:'cardBody', label:'Description', type:'text', def:'Add to your home screen for a faster, app-like experience.'},
-        {key:'btnColor', label:'Button color', type:'color', def:'#7c3aed'},
+        {key:'btnColor', label:'Button color', type:'color', def:'#7c3aed', cfgKey:'installColor'},
       ]
     },
     { id:'sw', title:'Service Worker', desc:'Required by all widgets — save as public/sw.js in your project',
@@ -1526,6 +1526,32 @@ await fetch("${BASE}/notify", {
     renderWidgetList();
   }
 
+  function wcCollectColors() {
+    var colors = {};
+    W_DEFS.forEach(function(w) {
+      w.fields.forEach(function(f) {
+        if (f.type === 'color' && f.cfgKey) {
+          var el = document.getElementById('wft-'+w.id+'-'+f.key);
+          colors[f.cfgKey] = el ? el.value.trim() : f.def;
+        }
+      });
+    });
+    return colors;
+  }
+
+  async function wcSaveColors() {
+    var sel = document.getElementById('widgets-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt || !opt.dataset.key) return;
+    var projectId = opt.value;
+    var colors = wcCollectColors();
+    await fetch(BASE + '/admin/projects/' + projectId + '/widgets', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify(Object.assign({ bell: !!WWIDGETS.bell, banner: !!WWIDGETS.banner, install: !!WWIDGETS.install, installBanner: !!WWIDGETS.installBanner }, colors)),
+    });
+  }
+
   async function wcToggleEnabled(wid) {
     var w = W_DEFS.find(function(d){return d.id===wid;});
     if (!w || !w.widgetKey) return;
@@ -1536,12 +1562,13 @@ await fetch("${BASE}/notify", {
 
     WWIDGETS[w.widgetKey] = !WWIDGETS[w.widgetKey];
 
-    // Save all three widget states
+    // Save widget states + current colors
     var projectId = opt.value;
+    var colors = wcCollectColors();
     await fetch(BASE + '/admin/projects/' + projectId + '/widgets', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
-      body: JSON.stringify({ bell: !!WWIDGETS.bell, banner: !!WWIDGETS.banner, install: !!WWIDGETS.install, installBanner: !!WWIDGETS.installBanner }),
+      body: JSON.stringify(Object.assign({ bell: !!WWIDGETS.bell, banner: !!WWIDGETS.banner, install: !!WWIDGETS.install, installBanner: !!WWIDGETS.installBanner }, colors)),
     });
 
     renderWidgetList();
@@ -1558,9 +1585,10 @@ await fetch("${BASE}/notify", {
       var fieldsHtml = w.fields.map(function(f) {
         var input;
         if (f.type === 'color') {
+          var savedColor = (f.cfgKey && WWIDGETS[f.cfgKey]) ? WWIDGETS[f.cfgKey] : f.def;
           input = '<div style="display:flex;align-items:center;gap:.5rem">' +
-            '<input type="color" id="wf-'+w.id+'-'+f.key+'" value="'+f.def+'" style="width:2.25rem;height:1.85rem;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;padding:.1rem" oninput="wcSyncText(\''+w.id+'\',\''+f.key+'\')">' +
-            '<input type="text" id="wft-'+w.id+'-'+f.key+'" value="'+f.def+'" style="width:90px;font-family:monospace" oninput="wcSyncPicker(\''+w.id+'\',\''+f.key+'\')">' +
+            '<input type="color" id="wf-'+w.id+'-'+f.key+'" value="'+savedColor+'" style="width:2.25rem;height:1.85rem;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;padding:.1rem" oninput="wcSyncText(\''+w.id+'\',\''+f.key+'\')">' +
+            '<input type="text" id="wft-'+w.id+'-'+f.key+'" value="'+savedColor+'" style="width:90px;font-family:monospace" oninput="wcSyncPicker(\''+w.id+'\',\''+f.key+'\')">' +
             '</div>';
         } else if (f.type === 'select') {
           input = '<select id="wf-'+w.id+'-'+f.key+'" style="width:auto" onchange="wcChange(\''+w.id+'\')">' +
@@ -1624,10 +1652,16 @@ await fetch("${BASE}/notify", {
     WSTATE[id] = !isOpen;
   }
 
+  var _colorSaveTimer = null;
+  function wcScheduleColorSave() {
+    clearTimeout(_colorSaveTimer);
+    _colorSaveTimer = setTimeout(function() { wcSaveColors().then(function(){ toast('Colors saved'); }); }, 800);
+  }
+
   function wcSyncText(wid, fkey) {
     var picker = document.getElementById('wf-'+wid+'-'+fkey);
     var text = document.getElementById('wft-'+wid+'-'+fkey);
-    if (picker && text) { text.value = picker.value; wcChange(wid); }
+    if (picker && text) { text.value = picker.value; wcChange(wid); wcScheduleColorSave(); }
   }
 
   function wcSyncPicker(wid, fkey) {
@@ -1635,6 +1669,7 @@ await fetch("${BASE}/notify", {
     var text = document.getElementById('wft-'+wid+'-'+fkey);
     if (picker && text && /^#[0-9a-fA-F]{6}$/.test(text.value)) picker.value = text.value;
     wcChange(wid);
+    wcScheduleColorSave();
   }
 
   function wcChange(id) {

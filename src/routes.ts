@@ -87,10 +87,14 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
 // Save widget enable/disable settings
 router.patch("/admin/projects/:id/widgets", requireAdminKey, async (req, res) => {
   const schema = z.object({
-    bell:          z.boolean(),
-    banner:        z.boolean(),
-    install:       z.boolean(),
-    installBanner: z.boolean().optional(),
+    bell:               z.boolean(),
+    banner:             z.boolean(),
+    install:            z.boolean(),
+    installBanner:      z.boolean().optional(),
+    bellColor:          z.string().optional(),
+    bannerColor:        z.string().optional(),
+    installColor:       z.string().optional(),
+    installBannerColor: z.string().optional(),
   });
   const cfg = schema.parse(req.body);
   const project = await updateProjectWidgets(req.params.id, JSON.stringify(cfg));
@@ -279,7 +283,7 @@ router.get("/widgets.js", async (req, res) => {
   }
 
   /* ── Bell Widget ── */
-  function mountBell(){
+  function mountBell(color){color=color||THEME;
     // navigator.vendor is "Apple Computer, Inc." on all Safari versions (stable across iOS versions)
     // maxTouchPoints>0 distinguishes iPhone/iPad from Mac (Macs always return 0)
     var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
@@ -333,7 +337,7 @@ router.get("/widgets.js", async (req, res) => {
     function refresh(s){
       subbed=s;
       if(s){
-        btn.style.background=THEME;
+        btn.style.background=color;
         btn.style.color='#fff';
         btn.innerHTML='&#x1F514;';
         btn.title='Manage notifications';
@@ -356,7 +360,7 @@ router.get("/widgets.js", async (req, res) => {
           var sb=mkEl('button',{textContent:'Notifications blocked'},{width:'100%',background:'#333',border:'none',borderRadius:'10px',color:'#888',padding:'10px',cursor:'default',fontWeight:'600',fontSize:'13px'});
           panelBody.append(sb);
         } else {
-          var sb=mkEl('button',{textContent:'Enable notifications'},{width:'100%',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'10px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
+          var sb=mkEl('button',{textContent:'Enable notifications'},{width:'100%',background:color,border:'none',borderRadius:'10px',color:'#fff',padding:'10px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
           var errEl=mkEl('p',{textContent:''},{color:'#f87171',fontSize:'11px',marginTop:'8px',lineHeight:'1.5',display:'none'});
           sb.onclick=async function(){
             sb.disabled=true;sb.textContent='...';errEl.style.display='none';
@@ -393,7 +397,7 @@ router.get("/widgets.js", async (req, res) => {
   }
 
   /* ── Install Prompt ── */
-  function mountInstall(){
+  function mountInstall(color){color=color||THEME;
     if(localStorage.getItem(DISMISSED_INSTALL))return;
     var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
     var isStandalone=!!window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches;
@@ -419,7 +423,7 @@ router.get("/widgets.js", async (req, res) => {
     },{color:'#888',fontSize:'12px',marginBottom:'12px',lineHeight:'1.5'});
 
     var row=mkEl('div',null,{display:'flex',gap:'8px'});
-    var instBtn=mkEl('button',{textContent:'Install'},{flex:'1',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'9px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
+    var instBtn=mkEl('button',{textContent:'Install'},{flex:'1',background:color,border:'none',borderRadius:'10px',color:'#fff',padding:'9px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
     var notNow=mkEl('button',{textContent:'Not now'},{background:'none',border:'none',color:'#666',cursor:'pointer',fontSize:'12px',padding:'9px 4px'});
     notNow.onclick=dismiss;
     row.append(instBtn,notNow);
@@ -445,7 +449,7 @@ router.get("/widgets.js", async (req, res) => {
   }
 
   /* ── Subscribe Banner (top-centered drop card) ── */
-  function mountBanner(){
+  function mountBanner(color){color=color||THEME;
     var DISMISSED='_pws_sub_banner';
     if(localStorage.getItem(DISMISSED))return;
     var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
@@ -498,7 +502,7 @@ router.get("/widgets.js", async (req, res) => {
       var subBtn=mkEl('button',{
         textContent:iosMode?'How to install':'Enable notifications'
       },{
-        width:'100%',background:THEME,border:'none',borderRadius:'10px',
+        width:'100%',background:color,border:'none',borderRadius:'10px',
         color:'#fff',padding:'9px',cursor:'pointer',fontWeight:'700',fontSize:'13px'
       });
       var errEl=mkEl('p',{textContent:''},{color:'#f87171',fontSize:'11px',marginTop:'6px',lineHeight:'1.5',display:'none'});
@@ -537,7 +541,7 @@ router.get("/widgets.js", async (req, res) => {
   }
 
   /* ── Installation Banner ── */
-  function mountInstallBanner(){
+  function mountInstallBanner(color){color=color||THEME;
     var DISMISSED_BANNER='_pws_ibanner';
     var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
     var isStandalone=!!window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches;
@@ -560,7 +564,7 @@ router.get("/widgets.js", async (req, res) => {
     var sub=mkEl('div',{textContent:isAppleMobile?'Tap to install on your Home Screen':'Install for the best experience'},{fontSize:'11px',color:'#888',marginTop:'2px'});
     info.append(nm,sub);
 
-    var instBtn=mkEl('button',{textContent:'Install'},{background:THEME,border:'none',borderRadius:'10px',
+    var instBtn=mkEl('button',{textContent:'Install'},{background:color,border:'none',borderRadius:'10px',
       color:'#fff',padding:'8px 16px',cursor:'pointer',fontWeight:'700',fontSize:'13px',flexShrink:'0',
       whiteSpace:'nowrap'});
     var xBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#555',
@@ -588,10 +592,10 @@ router.get("/widgets.js", async (req, res) => {
   /* ── Init ── */
   document.addEventListener('DOMContentLoaded',function(){
     registerSW();
-    if(CFG.bell)mountBell();
-    if(CFG.banner)mountBanner();
-    if(CFG.install)mountInstall();
-    if(CFG.installBanner)mountInstallBanner();
+    if(CFG.bell)mountBell(CFG.bellColor||THEME);
+    if(CFG.banner)mountBanner(CFG.bannerColor||THEME);
+    if(CFG.install)mountInstall(CFG.installColor||THEME);
+    if(CFG.installBanner)mountInstallBanner(CFG.installBannerColor||THEME);
   });
 
 })();`;
