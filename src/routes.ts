@@ -735,8 +735,9 @@ router.get("/install/:slugOrId", async (req, res) => {
   const bgColor    = (project as any).pwaBgColor     || "#ffffff";
   const installManifestUrl = `${base}/pwa/install-manifest/${(project as any).installSlug || project.id}`;
 
-  const screenshotHtml = shots.map(s =>
-    `<img src="${base}/pwa/screenshot/${s.id}.png" class="screenshot" alt="${s.label || appName} screenshot" />`
+  const screenshotUrls = shots.map(s => `${base}/pwa/screenshot/${s.id}.png`);
+  const screenshotHtml = shots.map((s, i) =>
+    `<img src="${screenshotUrls[i]}" class="screenshot" alt="${s.label || appName} screenshot" onclick="lbOpen(${i})" />`
   ).join("");
 
   // Convert YouTube watch URL to embed URL
@@ -815,8 +816,20 @@ router.get("/install/:slugOrId", async (req, res) => {
     .media-wrap{position:relative;margin:0 -2rem 1.75rem}
     .media-scroll{overflow-x:auto;display:flex;gap:.85rem;padding:.25rem 2rem .85rem;scrollbar-width:none;align-items:flex-start;scroll-behavior:smooth}
     .media-scroll::-webkit-scrollbar{display:none}
-    .media-yt{flex-shrink:0;width:calc(260px * 16 / 9);height:260px;border-radius:14px;overflow:hidden;border:0}
-    .screenshot{height:260px;border-radius:14px;flex-shrink:0;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+    .media-yt{flex-shrink:0;width:calc(360px * 16 / 9);height:360px;border-radius:14px;overflow:hidden;border:0}
+    .screenshot{height:360px;border-radius:14px;flex-shrink:0;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.18);cursor:zoom-in;transition:transform .15s,box-shadow .15s}
+    .screenshot:hover{transform:scale(1.015);box-shadow:0 8px 28px rgba(0,0,0,.28)}
+
+    /* Lightbox */
+    .lb-overlay{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);align-items:center;justify-content:center;cursor:zoom-out}
+    .lb-overlay.open{display:flex}
+    .lb-img{max-width:92vw;max-height:88vh;border-radius:12px;object-fit:contain;box-shadow:0 16px 64px rgba(0,0,0,.6);user-select:none}
+    .lb-close{position:fixed;top:1.1rem;right:1.25rem;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:1.4rem;line-height:1;width:2.4rem;height:2.4rem;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+    .lb-close:hover{background:rgba(255,255,255,.2)}
+    .lb-nav{position:fixed;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.1);border:none;color:#fff;font-size:1.8rem;line-height:1;width:2.8rem;height:2.8rem;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(6px);transition:background .15s}
+    .lb-nav:hover{background:rgba(255,255,255,.22)}
+    .lb-prev{left:1rem}
+    .lb-next{right:1rem}
     .carousel-btn{
       display:none;position:absolute;top:50%;transform:translateY(-50%);
       width:40px;height:40px;border-radius:50%;
@@ -931,6 +944,14 @@ router.get("/install/:slugOrId", async (req, res) => {
     ${appUrl !== "#" ? `<a class="open-btn" href="${appUrl}">Open in browser →</a>` : ""}
   </div>
 
+  <!-- Lightbox -->
+  <div class="lb-overlay" id="lb-overlay" onclick="lbClose(event)">
+    <button class="lb-close" onclick="lbClose()" aria-label="Close">&#x2715;</button>
+    ${shots.length > 1 ? `<button class="lb-nav lb-prev" onclick="event.stopPropagation();lbStep(-1)" aria-label="Previous">&#8249;</button>` : ""}
+    <img class="lb-img" id="lb-img" src="" alt="" />
+    ${shots.length > 1 ? `<button class="lb-nav lb-next" onclick="event.stopPropagation();lbStep(1)" aria-label="Next">&#8250;</button>` : ""}
+  </div>
+
   <!-- iOS install instructions modal -->
   <div class="ios-overlay" id="ios-overlay" onclick="closeIosModal(event)">
     <div class="ios-sheet">
@@ -964,6 +985,40 @@ router.get("/install/:slugOrId", async (req, res) => {
   </div>
 
   <script>
+    var lbUrls = ${JSON.stringify(screenshotUrls)};
+    var lbIdx  = 0;
+    var lbOverlay = null;
+
+    function lbOpen(i) {
+      lbIdx = i;
+      if (!lbOverlay) lbOverlay = document.getElementById('lb-overlay');
+      document.getElementById('lb-img').src = lbUrls[i];
+      lbOverlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+    function lbClose(e) {
+      if (e && e.target !== lbOverlay && !e.target.classList.contains('lb-close')) return;
+      if (!e) {
+        lbOverlay = lbOverlay || document.getElementById('lb-overlay');
+        lbOverlay.classList.remove('open');
+        document.body.style.overflow = '';
+        return;
+      }
+      lbOverlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+    function lbStep(dir) {
+      lbIdx = (lbIdx + dir + lbUrls.length) % lbUrls.length;
+      document.getElementById('lb-img').src = lbUrls[lbIdx];
+    }
+    document.addEventListener('keydown', function(e) {
+      var ov = document.getElementById('lb-overlay');
+      if (!ov || !ov.classList.contains('open')) return;
+      if (e.key === 'Escape') { ov.classList.remove('open'); document.body.style.overflow = ''; }
+      if (e.key === 'ArrowLeft')  lbStep(-1);
+      if (e.key === 'ArrowRight') lbStep(1);
+    });
+
     function carouselScroll(dir) {
       var el = document.getElementById('media-scroll');
       if (!el) return;
