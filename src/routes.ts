@@ -805,6 +805,15 @@ router.get("/install/:slugOrId", async (req, res) => {
     /* Description */
     .desc{font-size:.93rem;line-height:1.65;color:${mutedColor};padding:.25rem 0 1.5rem}
 
+    /* Static info blocks */
+    .info-section{display:flex;flex-direction:column;gap:.1rem;padding-bottom:2rem}
+    .info-block{padding:1.1rem 0;border-top:1px solid ${dividerColor}}
+    .info-block:last-child{border-bottom:1px solid ${dividerColor}}
+    .info-block h3{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${mutedColor};margin-bottom:.5rem}
+    .info-block p{font-size:.88rem;line-height:1.65;color:${isDark ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.65)"}}
+    .platform-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
+    .chip{display:inline-flex;align-items:center;gap:.3rem;padding:.25rem .65rem;border-radius:20px;font-size:.75rem;font-weight:500;background:${isDark ? "rgba(255,255,255,.07)" : "rgba(0,0,0,.06)"};color:${isDark ? "rgba(255,255,255,.7)" : "rgba(0,0,0,.6)"}}
+
     /* Bottom link */
     .open-btn{
       display:block;text-align:center;font-size:.82rem;color:${mutedColor};
@@ -869,6 +878,23 @@ router.get("/install/:slugOrId", async (req, res) => {
     </div>` : ""}
 
     ${appDesc ? `<p class="desc">${appDesc}</p>` : ""}
+
+    <div class="info-section">
+      <div class="info-block">
+        <h3>What is this app?</h3>
+        <p>This app is a Progressive Web App (PWA). Install it on any smartphone, tablet or desktop — it uses very little storage space and requires no updates. By design, a PWA cannot access your device data or personal information.</p>
+      </div>
+      <div class="info-block">
+        <h3>Availability</h3>
+        <p>Install ${appName} in a few seconds — directly from your browser. Simply click the <strong>Install</strong> button at the top of the page.</p>
+        <div class="platform-chips">
+          <span class="chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24C14.97 8.03 13.55 7.6 12 7.6s-2.97.43-4.47 1.11L5.65 5.47c-.18-.28-.54-.37-.83-.22-.3.16-.42.54-.26.85L6.4 9.48C3.3 11.25 1.28 14.44 1 18h22c-.28-3.56-2.3-6.75-5.4-8.52zM7 15.25c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25zm10 0c-.69 0-1.25-.56-1.25-1.25s.56-1.25 1.25-1.25 1.25.56 1.25 1.25-.56 1.25-1.25 1.25z"/></svg>Android (Chrome)</span>
+          <span class="chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>iOS (Safari)</span>
+          <span class="chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M0 12C0 5.373 5.373 0 12 0s12 5.373 12 12-5.373 12-12 12S0 18.627 0 12zm3.84 0c0 4.505 3.655 8.16 8.16 8.16 4.505 0 8.16-3.655 8.16-8.16 0-4.505-3.655-8.16-8.16-8.16C7.495 3.84 3.84 7.495 3.84 12z"/></svg>Windows (Chrome / Edge)</span>
+          <span class="chip"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>macOS (Chrome)</span>
+        </div>
+      </div>
+    </div>
 
     ${appUrl !== "#" ? `<a class="open-btn" href="${appUrl}">Open in browser →</a>` : ""}
   </div>
