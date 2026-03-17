@@ -395,6 +395,9 @@ router.get("/widgets.js", async (req, res) => {
   /* ── Install Prompt ── */
   function mountInstall(){
     if(localStorage.getItem(DISMISSED_INSTALL))return;
+    var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
+    var isStandalone=!!window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches;
+    if(isStandalone)return;
 
     var card=mkEl('div',null,{display:'none',position:'fixed',bottom:'88px',right:'24px',zIndex:'999998',width:'280px',background:'#111',border:'1px solid #333',borderRadius:'16px',boxShadow:'0 8px 32px rgba(0,0,0,.5)',padding:'16px',fontFamily:'system-ui,-apple-system,sans-serif',color:'#e5e5e5',fontSize:'13px'});
 
@@ -409,7 +412,11 @@ router.get("/widgets.js", async (req, res) => {
     xBtn.onclick=dismiss;
     head.append(iconWrap,titleEl,xBtn);
 
-    var desc=mkEl('p',{textContent:'Add to your home screen for a faster, app-like experience.'},{color:'#888',fontSize:'12px',marginBottom:'12px',lineHeight:'1.5'});
+    var desc=mkEl('p',{
+      textContent:isAppleMobile
+        ?'Tap Install to add this app to your Home Screen.'
+        :'Add to your home screen for a faster, app-like experience.'
+    },{color:'#888',fontSize:'12px',marginBottom:'12px',lineHeight:'1.5'});
 
     var row=mkEl('div',null,{display:'flex',gap:'8px'});
     var instBtn=mkEl('button',{textContent:'Install'},{flex:'1',background:THEME,border:'none',borderRadius:'10px',color:'#fff',padding:'9px',cursor:'pointer',fontWeight:'600',fontSize:'13px'});
@@ -419,18 +426,21 @@ router.get("/widgets.js", async (req, res) => {
     card.append(head,desc,row);
     document.body.append(card);
 
-    // dp is captured early (top-level listener) — show card if prompt is already available
-    if(dp)card.style.display='block';
-    // Also watch for it arriving late (e.g. after SW activates)
+    // On iOS, beforeinstallprompt never fires — show card immediately
+    if(isAppleMobile||dp)card.style.display='block';
     window.addEventListener('beforeinstallprompt',function(){card.style.display='block';});
 
     instBtn.onclick=async function(){
-      if(!dp)return;
-      instBtn.disabled=true;
-      await dp.prompt();
-      var r=await dp.userChoice;
-      if(r.outcome==='accepted')card.remove();
-      else dismiss();
+      if(dp){
+        instBtn.disabled=true;
+        await dp.prompt();
+        var r=await dp.userChoice;
+        if(r.outcome==='accepted')card.remove();
+        else dismiss();
+      }else{
+        // iOS or no prompt — go to dedicated install page
+        window.location.href=INSTALL_URL;
+      }
     };
   }
 
@@ -438,11 +448,23 @@ router.get("/widgets.js", async (req, res) => {
   function mountBanner(){
     var DISMISSED='_pws_sub_banner';
     if(localStorage.getItem(DISMISSED))return;
-    if(!('serviceWorker' in navigator&&'PushManager' in window))return;
+    var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
+    var isStandalone=!!window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches;
+    var pushSupported='serviceWorker' in navigator&&'PushManager' in window;
+
+    // iOS in browser (not installed PWA): push unavailable — show "install first" banner instead
+    if(isAppleMobile&&!isStandalone&&!pushSupported){
+      showBannerCard(true);
+      return;
+    }
+    if(!pushSupported)return;
 
     isSubscribed().then(function(already){
       if(already)return;
+      showBannerCard(false);
+    });
 
+    function showBannerCard(iosMode){
       var card=mkEl('div',null,{
         position:'fixed',top:'12px',left:'50%',zIndex:'999996',
         transform:'translateX(-50%) translateY(-120%)',
@@ -465,47 +487,53 @@ router.get("/widgets.js", async (req, res) => {
       if(ICON){var ic=mkEl('img',{src:ICON},{width:'36px',height:'36px',borderRadius:'9px',objectFit:'cover',flexShrink:'0'});head.append(ic);}
       var headText=mkEl('div',null,{flex:'1',minWidth:'0'});
       var nm=mkEl('div',{textContent:APP_NAME},{fontWeight:'700',fontSize:'13px',color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'});
-      var tagline=mkEl('div',{textContent:'Enable notifications to stay updated'},{fontSize:'11px',color:'#888',marginTop:'2px'});
+      var tagline=mkEl('div',{
+        textContent:iosMode?'Install the app to enable notifications':'Enable notifications to stay updated'
+      },{fontSize:'11px',color:'#888',marginTop:'2px'});
       headText.append(nm,tagline);
       var xBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#555',cursor:'pointer',fontSize:'15px',padding:'2px',flexShrink:'0',lineHeight:'1'});
       xBtn.onclick=dismiss;
       head.append(headText,xBtn);
 
-      // Action row
-      var subBtn=mkEl('button',{textContent:'Enable notifications'},{
+      var subBtn=mkEl('button',{
+        textContent:iosMode?'How to install':'Enable notifications'
+      },{
         width:'100%',background:THEME,border:'none',borderRadius:'10px',
         color:'#fff',padding:'9px',cursor:'pointer',fontWeight:'700',fontSize:'13px'
       });
       var errEl=mkEl('p',{textContent:''},{color:'#f87171',fontSize:'11px',marginTop:'6px',lineHeight:'1.5',display:'none'});
 
-      subBtn.onclick=async function(){
-        subBtn.disabled=true;subBtn.textContent='...';errEl.style.display='none';
-        var perm=await Notification.requestPermission();
-        if(perm!=='granted'){
-          subBtn.textContent='Blocked';
-          errEl.textContent='Allow notifications in your browser settings, then reload.';
-          errEl.style.display='block';
-          subBtn.disabled=false;
-          return;
-        }
-        var result=await subscribe();
-        if(result.ok){
-          subBtn.textContent='✓ Subscribed!';
-          setTimeout(function(){dismiss();},1200);
-        } else {
-          subBtn.disabled=false;subBtn.textContent='Enable notifications';
-          errEl.textContent=result.error||'Subscription failed — try again.';
-          errEl.style.display='block';
-        }
-      };
+      if(iosMode){
+        subBtn.onclick=function(){window.location.href=INSTALL_URL;};
+      }else{
+        subBtn.onclick=async function(){
+          subBtn.disabled=true;subBtn.textContent='...';errEl.style.display='none';
+          var perm=await Notification.requestPermission();
+          if(perm!=='granted'){
+            subBtn.textContent='Blocked';
+            errEl.textContent='Allow notifications in your browser settings, then reload.';
+            errEl.style.display='block';
+            subBtn.disabled=false;
+            return;
+          }
+          var result=await subscribe();
+          if(result.ok){
+            subBtn.textContent='✓ Subscribed!';
+            setTimeout(function(){dismiss();},1200);
+          }else{
+            subBtn.disabled=false;subBtn.textContent='Enable notifications';
+            errEl.textContent=result.error||'Subscription failed — try again.';
+            errEl.style.display='block';
+          }
+        };
+      }
 
       card.append(head,subBtn,errEl);
       document.body.append(card);
-      // Small delay so the browser has painted before animating in
       requestAnimationFrame(function(){requestAnimationFrame(function(){
         card.style.transform='translateX(-50%) translateY(0)';
       });});
-    });
+    }
   }
 
   /* ── Installation Banner ── */
