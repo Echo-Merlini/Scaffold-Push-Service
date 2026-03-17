@@ -289,7 +289,7 @@ router.get("/widgets.js", async (req, res) => {
     // Show on Apple touch devices (to guide install) or any browser with push support
     if(!pushSupported&&!isAppleMobile)return;
 
-    var wrap=mkEl('div',null,{position:'fixed',bottom:'24px',right:'24px',zIndex:'999999',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'8px',fontFamily:'system-ui,-apple-system,sans-serif'});
+    var wrap=mkEl('div',null,{position:'fixed',bottom:CFG.installBanner?'88px':'24px',right:'24px',zIndex:'999999',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'8px',fontFamily:'system-ui,-apple-system,sans-serif'});
 
     var panel=mkEl('div',null,{display:'none',background:'#111',border:'1px solid #333',borderRadius:'16px',boxShadow:'0 8px 32px rgba(0,0,0,.5)',padding:'16px',width:'280px',color:'#e5e5e5',fontSize:'13px'});
 
@@ -760,42 +760,39 @@ router.get("/install/:slugOrId", async (req, res) => {
     }
     .wrap{width:100%;max-width:520px;padding:0 1.25rem;display:flex;flex-direction:column;flex:1}
 
-    /* Hero */
-    .hero{display:flex;flex-direction:column;align-items:center;padding:3.5rem 0 2rem;text-align:center}
-    .app-icon{width:108px;height:108px;border-radius:26px;object-fit:cover;box-shadow:0 8px 32px rgba(0,0,0,.28);margin-bottom:1.25rem}
-    .app-icon-placeholder{width:108px;height:108px;border-radius:26px;background:${themeColor};display:flex;align-items:center;justify-content:center;font-size:3rem;margin-bottom:1.25rem}
-    .app-name{font-size:1.75rem;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-bottom:.4rem}
-    .app-url{font-size:.78rem;color:${mutedColor}}
-
-    /* Description */
-    .desc{font-size:.95rem;line-height:1.65;color:${mutedColor};text-align:center;padding:1.5rem 0}
-
-    /* YouTube */
-    .yt-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:16px;margin-bottom:2rem}
-    .yt-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
-
-    /* Screenshots */
-    .screenshots-wrap{margin:0 -1.25rem 2rem}
-    .screenshots{overflow-x:auto;display:flex;gap:.75rem;padding:.25rem 1.25rem .75rem;scrollbar-width:none}
-    .screenshots::-webkit-scrollbar{display:none}
-    .screenshot{height:240px;border-radius:14px;flex-shrink:0;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.18)}
-
-    /* CTA */
-    .cta{padding-bottom:2.5rem;display:flex;flex-direction:column;align-items:stretch;gap:.75rem;margin-top:auto}
+    /* Top row: icon + info + install btn */
+    .top-row{display:flex;align-items:center;gap:1rem;padding:2.25rem 0 1.5rem}
+    .app-icon{width:84px;height:84px;border-radius:20px;object-fit:cover;box-shadow:0 6px 24px rgba(0,0,0,.28);flex-shrink:0}
+    .app-icon-placeholder{width:84px;height:84px;border-radius:20px;background:${themeColor};display:flex;align-items:center;justify-content:center;font-size:2.5rem;flex-shrink:0}
+    .top-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:.3rem}
+    .app-name{font-size:1.35rem;font-weight:800;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .app-url{font-size:.75rem;color:${mutedColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .install-btn{
-      display:flex;align-items:center;justify-content:center;gap:.55rem;
-      padding:1rem 1.5rem;
+      display:flex;align-items:center;justify-content:center;gap:.45rem;
+      padding:.65rem 1.15rem;
       background:${themeColor};color:#fff;
-      border:none;border-radius:14px;
-      font-size:1.05rem;font-weight:700;letter-spacing:.01em;
+      border:none;border-radius:12px;
+      font-size:.95rem;font-weight:700;letter-spacing:.01em;
       cursor:pointer;transition:transform .1s,opacity .15s;
-      text-decoration:none;
+      text-decoration:none;white-space:nowrap;flex-shrink:0;
     }
     .install-btn:active{transform:scale(.97)}
     .install-btn:disabled{opacity:.45;cursor:default;transform:none}
+
+    /* Media carousel — full-bleed single row */
+    .media-wrap{margin:0 -1.25rem 1.5rem}
+    .media-scroll{overflow-x:auto;display:flex;gap:.75rem;padding:.25rem 1.25rem .75rem;scrollbar-width:none;align-items:flex-start}
+    .media-scroll::-webkit-scrollbar{display:none}
+    .media-yt{flex-shrink:0;width:calc(220px * 16 / 9);height:220px;border-radius:14px;overflow:hidden;border:0}
+    .screenshot{height:220px;border-radius:14px;flex-shrink:0;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+
+    /* Description */
+    .desc{font-size:.93rem;line-height:1.65;color:${mutedColor};padding:.25rem 0 1.5rem}
+
+    /* Bottom link */
     .open-btn{
-      text-align:center;font-size:.82rem;color:${mutedColor};
-      text-decoration:none;padding:.4rem;
+      display:block;text-align:center;font-size:.82rem;color:${mutedColor};
+      text-decoration:none;padding:.6rem;margin-top:auto;padding-bottom:2rem;
       transition:opacity .15s;
     }
     .open-btn:hover{opacity:.7}
@@ -833,27 +830,27 @@ router.get("/install/:slugOrId", async (req, res) => {
 </head>
 <body>
   <div class="wrap">
-    <div class="hero">
+    <!-- Top row: icon · info · install button -->
+    <div class="top-row">
       ${icon
         ? `<img src="${icon}" class="app-icon" alt="${appName}"/>`
         : `<div class="app-icon-placeholder">📱</div>`}
-      <h1 class="app-name">${appName}</h1>
-      ${appUrl !== "#" ? `<div class="app-url">${appUrl.replace(/^https?:\/\//, "")}</div>` : ""}
+      <div class="top-info">
+        <h1 class="app-name">${appName}</h1>
+        ${appUrl !== "#" ? `<div class="app-url">${appUrl.replace(/^https?:\/\//, "")}</div>` : ""}
+      </div>
+      <button class="install-btn" id="install-btn" onclick="triggerInstall()">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Install
+      </button>
     </div>
+
+    <!-- Media carousel: YouTube + screenshots in one horizontal row -->
+    ${(youtubeEmbed || shots.length) ? `<div class="media-wrap"><div class="media-scroll">${youtubeEmbed ? `<iframe class="media-yt" src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe>` : ""}${screenshotHtml}</div></div>` : ""}
 
     ${appDesc ? `<p class="desc">${appDesc}</p>` : ""}
 
-    ${youtubeEmbed ? `<div class="yt-wrap"><iframe src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe></div>` : ""}
-
-    ${shots.length ? `<div class="screenshots-wrap"><div class="screenshots">${screenshotHtml}</div></div>` : ""}
-
-    <div class="cta">
-      <button class="install-btn" id="install-btn" onclick="triggerInstall()">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Install
-      </button>
-      ${appUrl !== "#" ? `<a class="open-btn" href="${appUrl}">Open in browser</a>` : ""}
-    </div>
+    ${appUrl !== "#" ? `<a class="open-btn" href="${appUrl}">Open in browser →</a>` : ""}
   </div>
 
   <!-- iOS install instructions modal -->
