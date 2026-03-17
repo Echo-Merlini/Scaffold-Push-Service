@@ -293,9 +293,10 @@ router.get("/widgets.js", async (req, res) => {
 
     var panel=mkEl('div',null,{display:'none',background:'#111',border:'1px solid #333',borderRadius:'16px',boxShadow:'0 8px 32px rgba(0,0,0,.5)',padding:'16px',width:'280px',color:'#e5e5e5',fontSize:'13px'});
 
-    var panelHead=mkEl('div',null,{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'});
-    var panelTitle=mkEl('span',{textContent:'Push Notifications'},{fontWeight:'600',fontSize:'14px'});
-    var closeBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#888',cursor:'pointer',fontSize:'14px',lineHeight:'1',padding:'0'});
+    var panelHead=mkEl('div',null,{display:'flex',alignItems:'center',gap:'8px',marginBottom:'12px'});
+    if(ICON){var logoEl=mkEl('img',{src:ICON},{width:'26px',height:'26px',borderRadius:'6px',objectFit:'cover',flexShrink:'0'});panelHead.append(logoEl);}
+    var panelTitle=mkEl('span',{textContent:APP_NAME},{fontWeight:'600',fontSize:'14px',flex:'1',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'});
+    var closeBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#888',cursor:'pointer',fontSize:'14px',lineHeight:'1',padding:'0',flexShrink:'0'});
     closeBtn.onclick=function(){panel.style.display='none';};
     panelHead.append(panelTitle,closeBtn);
 
@@ -433,7 +434,7 @@ router.get("/widgets.js", async (req, res) => {
     };
   }
 
-  /* ── Subscribe Banner ── */
+  /* ── Subscribe Banner (top-centered drop card) ── */
   function mountBanner(){
     var DISMISSED='_pws_sub_banner';
     if(localStorage.getItem(DISMISSED))return;
@@ -442,46 +443,68 @@ router.get("/widgets.js", async (req, res) => {
     isSubscribed().then(function(already){
       if(already)return;
 
-      var bar=mkEl('div',null,{position:'fixed',top:'0',left:'0',right:'0',zIndex:'999996',
-        background:'#111',borderBottom:'1px solid #222',
-        display:'flex',alignItems:'center',gap:'10px',padding:'10px 14px',
-        fontFamily:'system-ui,-apple-system,sans-serif',
-        transform:'translateY(-100%)',transition:'transform .35s cubic-bezier(.4,0,.2,1)'});
+      var card=mkEl('div',null,{
+        position:'fixed',top:'12px',left:'50%',zIndex:'999996',
+        transform:'translateX(-50%) translateY(-120%)',
+        transition:'transform .4s cubic-bezier(.34,1.56,.64,1)',
+        width:'min(360px,calc(100% - 24px))',
+        background:'#111',border:'1px solid #2a2a2a',borderRadius:'16px',
+        boxShadow:'0 8px 32px rgba(0,0,0,.5)',
+        padding:'14px 16px',fontFamily:'system-ui,-apple-system,sans-serif',
+        color:'#e5e5e5'
+      });
 
-      function dismiss(){localStorage.setItem(DISMISSED,'1');bar.style.transform='translateY(-100%)';setTimeout(function(){bar.remove();},350);}
+      function dismiss(){
+        localStorage.setItem(DISMISSED,'1');
+        card.style.transform='translateX(-50%) translateY(-120%)';
+        setTimeout(function(){card.remove();},400);
+      }
 
-      var info=mkEl('div',null,{flex:'1',minWidth:'0'});
-      var nm=mkEl('div',{textContent:'Stay in the loop'},{fontWeight:'700',fontSize:'13px',color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'});
-      var sub=mkEl('div',{textContent:'Get notified about new updates'},{fontSize:'11px',color:'#888',marginTop:'2px'});
-      info.append(nm,sub);
-
-      var subBtn=mkEl('button',{textContent:'Subscribe'},{background:THEME,border:'none',borderRadius:'10px',
-        color:'#fff',padding:'7px 14px',cursor:'pointer',fontWeight:'700',fontSize:'12px',flexShrink:'0',whiteSpace:'nowrap'});
-      var xBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#555',
-        cursor:'pointer',fontSize:'16px',padding:'4px',flexShrink:'0',lineHeight:'1'});
+      // Header row: icon + name + close
+      var head=mkEl('div',null,{display:'flex',alignItems:'center',gap:'10px',marginBottom:'10px'});
+      if(ICON){var ic=mkEl('img',{src:ICON},{width:'36px',height:'36px',borderRadius:'9px',objectFit:'cover',flexShrink:'0'});head.append(ic);}
+      var headText=mkEl('div',null,{flex:'1',minWidth:'0'});
+      var nm=mkEl('div',{textContent:APP_NAME},{fontWeight:'700',fontSize:'13px',color:'#fff',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'});
+      var tagline=mkEl('div',{textContent:'Enable notifications to stay updated'},{fontSize:'11px',color:'#888',marginTop:'2px'});
+      headText.append(nm,tagline);
+      var xBtn=mkEl('button',{textContent:'✕'},{background:'none',border:'none',color:'#555',cursor:'pointer',fontSize:'15px',padding:'2px',flexShrink:'0',lineHeight:'1'});
       xBtn.onclick=dismiss;
+      head.append(headText,xBtn);
+
+      // Action row
+      var subBtn=mkEl('button',{textContent:'Enable notifications'},{
+        width:'100%',background:THEME,border:'none',borderRadius:'10px',
+        color:'#fff',padding:'9px',cursor:'pointer',fontWeight:'700',fontSize:'13px'
+      });
+      var errEl=mkEl('p',{textContent:''},{color:'#f87171',fontSize:'11px',marginTop:'6px',lineHeight:'1.5',display:'none'});
 
       subBtn.onclick=async function(){
-        subBtn.disabled=true;subBtn.textContent='...';
+        subBtn.disabled=true;subBtn.textContent='...';errEl.style.display='none';
         var perm=await Notification.requestPermission();
         if(perm!=='granted'){
           subBtn.textContent='Blocked';
-          setTimeout(function(){dismiss();},1500);
+          errEl.textContent='Allow notifications in your browser settings, then reload.';
+          errEl.style.display='block';
+          subBtn.disabled=false;
           return;
         }
         var result=await subscribe();
-        if(result.ok){subBtn.textContent='✓';setTimeout(function(){bar.remove();},1200);}
-        else{
-          subBtn.disabled=false;subBtn.textContent='Subscribe';
-          var errEl=bar.querySelector('.pws-err');
-          if(!errEl){errEl=mkEl('div',{textContent:result.error||'Failed — try again'},{fontSize:'11px',color:'#f87171',marginTop:'4px',width:'100%',order:'10'});bar.append(errEl);}
-          else{errEl.textContent=result.error||'Failed — try again';}
+        if(result.ok){
+          subBtn.textContent='✓ Subscribed!';
+          setTimeout(function(){dismiss();},1200);
+        } else {
+          subBtn.disabled=false;subBtn.textContent='Enable notifications';
+          errEl.textContent=result.error||'Subscription failed — try again.';
+          errEl.style.display='block';
         }
       };
 
-      bar.append(info,subBtn,xBtn);
-      document.body.append(bar);
-      requestAnimationFrame(function(){requestAnimationFrame(function(){bar.style.transform='translateY(0)';});});
+      card.append(head,subBtn,errEl);
+      document.body.append(card);
+      // Small delay so the browser has painted before animating in
+      requestAnimationFrame(function(){requestAnimationFrame(function(){
+        card.style.transform='translateX(-50%) translateY(0)';
+      });});
     });
   }
 
