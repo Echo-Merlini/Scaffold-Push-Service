@@ -758,21 +758,21 @@ router.get("/install/:slugOrId", async (req, res) => {
       flex-direction:column;
       align-items:center;
     }
-    .wrap{width:100%;max-width:520px;padding:0 1.25rem;display:flex;flex-direction:column;flex:1}
+    .wrap{width:100%;max-width:860px;padding:0 2rem;display:flex;flex-direction:column;flex:1}
 
     /* Top row: icon + info + install btn */
-    .top-row{display:flex;align-items:center;gap:1rem;padding:2.25rem 0 1.5rem}
-    .app-icon{width:84px;height:84px;border-radius:20px;object-fit:cover;box-shadow:0 6px 24px rgba(0,0,0,.28);flex-shrink:0}
-    .app-icon-placeholder{width:84px;height:84px;border-radius:20px;background:${themeColor};display:flex;align-items:center;justify-content:center;font-size:2.5rem;flex-shrink:0}
-    .top-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:.3rem}
-    .app-name{font-size:1.35rem;font-weight:800;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .app-url{font-size:.75rem;color:${mutedColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .top-row{display:flex;align-items:center;gap:1.25rem;padding:2.5rem 0 1.75rem}
+    .app-icon{width:92px;height:92px;border-radius:22px;object-fit:cover;box-shadow:0 6px 24px rgba(0,0,0,.28);flex-shrink:0}
+    .app-icon-placeholder{width:92px;height:92px;border-radius:22px;background:${themeColor};display:flex;align-items:center;justify-content:center;font-size:2.75rem;flex-shrink:0}
+    .top-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:.35rem}
+    .app-name{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .app-url{font-size:.78rem;color:${mutedColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .install-btn{
       display:flex;align-items:center;justify-content:center;gap:.45rem;
-      padding:.65rem 1.15rem;
+      padding:.7rem 1.35rem;
       background:${themeColor};color:#fff;
       border:none;border-radius:12px;
-      font-size:.95rem;font-weight:700;letter-spacing:.01em;
+      font-size:1rem;font-weight:700;letter-spacing:.01em;
       cursor:pointer;transition:transform .1s,opacity .15s;
       text-decoration:none;white-space:nowrap;flex-shrink:0;
     }
@@ -780,11 +780,27 @@ router.get("/install/:slugOrId", async (req, res) => {
     .install-btn:disabled{opacity:.45;cursor:default;transform:none}
 
     /* Media carousel — full-bleed single row */
-    .media-wrap{margin:0 -1.25rem 1.5rem}
-    .media-scroll{overflow-x:auto;display:flex;gap:.75rem;padding:.25rem 1.25rem .75rem;scrollbar-width:none;align-items:flex-start}
+    .media-wrap{position:relative;margin:0 -2rem 1.75rem}
+    .media-scroll{overflow-x:auto;display:flex;gap:.85rem;padding:.25rem 2rem .85rem;scrollbar-width:none;align-items:flex-start;scroll-behavior:smooth}
     .media-scroll::-webkit-scrollbar{display:none}
-    .media-yt{flex-shrink:0;width:calc(220px * 16 / 9);height:220px;border-radius:14px;overflow:hidden;border:0}
-    .screenshot{height:220px;border-radius:14px;flex-shrink:0;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+    .media-yt{flex-shrink:0;width:calc(260px * 16 / 9);height:260px;border-radius:14px;overflow:hidden;border:0}
+    .screenshot{height:260px;border-radius:14px;flex-shrink:0;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+    .carousel-btn{
+      display:none;position:absolute;top:50%;transform:translateY(-50%);
+      width:40px;height:40px;border-radius:50%;
+      background:${isDark ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.12)"};
+      border:1px solid ${isDark ? "rgba(255,255,255,.18)" : "rgba(0,0,0,.15)"};
+      color:${textColor};cursor:pointer;
+      align-items:center;justify-content:center;
+      font-size:18px;line-height:1;
+      transition:background .15s,transform .1s;
+      z-index:2;backdrop-filter:blur(4px);
+    }
+    .carousel-btn:hover{background:${isDark ? "rgba(255,255,255,.22)" : "rgba(0,0,0,.22)"};}
+    .carousel-btn:active{transform:translateY(-50%) scale(.93);}
+    .carousel-btn.left{left:.5rem}
+    .carousel-btn.right{right:.5rem}
+    @media(hover:hover){.carousel-btn{display:flex;}}
 
     /* Description */
     .desc{font-size:.93rem;line-height:1.65;color:${mutedColor};padding:.25rem 0 1.5rem}
@@ -846,7 +862,11 @@ router.get("/install/:slugOrId", async (req, res) => {
     </div>
 
     <!-- Media carousel: YouTube + screenshots in one horizontal row -->
-    ${(youtubeEmbed || shots.length) ? `<div class="media-wrap"><div class="media-scroll">${youtubeEmbed ? `<iframe class="media-yt" src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe>` : ""}${screenshotHtml}</div></div>` : ""}
+    ${(youtubeEmbed || shots.length) ? `<div class="media-wrap">
+      <button class="carousel-btn left" id="carousel-prev" onclick="carouselScroll(-1)" aria-label="Previous">&#8249;</button>
+      <div class="media-scroll" id="media-scroll">${youtubeEmbed ? `<iframe class="media-yt" src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe>` : ""}${screenshotHtml}</div>
+      <button class="carousel-btn right" id="carousel-next" onclick="carouselScroll(1)" aria-label="Next">&#8250;</button>
+    </div>` : ""}
 
     ${appDesc ? `<p class="desc">${appDesc}</p>` : ""}
 
@@ -886,6 +906,12 @@ router.get("/install/:slugOrId", async (req, res) => {
   </div>
 
   <script>
+    function carouselScroll(dir) {
+      var el = document.getElementById('media-scroll');
+      if (!el) return;
+      el.scrollBy({ left: dir * 320, behavior: 'smooth' });
+    }
+
     var dp = null;
     var isAppleMobile = (/apple/i.test(navigator.vendor)) && navigator.maxTouchPoints > 0;
     var isStandalone  = window.matchMedia('(display-mode:standalone)').matches || !!window.navigator.standalone;
