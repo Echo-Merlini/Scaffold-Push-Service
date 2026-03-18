@@ -1461,8 +1461,7 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
       `GET ${BASE}/vapid-public-key\n\n// Response:\n{ "publicKey": "${publicKey}" }`;
 
     document.getElementById('widgets-snippet').textContent =
-`<!-- Add before </body> in your index.html — replace KEY with your project API key -->
-<script defer src="${BASE}/widgets.js?key=YOUR_PROJECT_API_KEY"></script>`;
+`<!-- Add before </body> in your index.html — replace KEY with your project API key -->\n<script defer src="${BASE}/widgets.js?key=YOUR_PROJECT_API_KEY"><\/script>`;
 
     document.getElementById('identify-snippet').textContent =
 `// React — in auth context, fires on login and on page load with active session
