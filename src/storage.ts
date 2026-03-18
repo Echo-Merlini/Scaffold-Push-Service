@@ -120,9 +120,11 @@ export async function upsertSubscription(data: {
   });
 
   if (existing) {
+    const updates: Partial<typeof data> = { p256dh: data.p256dh, auth: data.auth };
+    if (data.userId) updates.userId = data.userId;
     const [updated] = await db
       .update(subscriptions)
-      .set({ p256dh: data.p256dh, auth: data.auth })
+      .set(updates)
       .where(eq(subscriptions.endpoint, data.endpoint))
       .returning();
     return updated;
