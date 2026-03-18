@@ -384,6 +384,10 @@
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
       Integration Guide
     </div>
+    <div class="nav-item" onclick="navigate('docs')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      API Docs
+    </div>
     <div class="nav-item" onclick="navigate('widgets')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="4"/><rect x="14" y="3" width="7" height="4"/><rect x="3" y="11" width="18" height="10" rx="2"/></svg>
       UI Components
@@ -522,6 +526,8 @@
 
     <!-- Integration Guide -->
     <div class="section" id="section-integrate">
+      <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:1.25rem">Step-by-step guide to integrate push notifications into your app. Use the <strong>Docs</strong> tab for the full API reference.</p>
+
       <div class="card">
         <div class="card-header"><span class="card-title">1. Get your VAPID public key</span></div>
         <pre id="vapid-snippet">Loading...</pre>
@@ -569,13 +575,147 @@ self.addEventListener("notificationclick", (event) => {
       </div>
 
       <div class="card">
-        <div class="card-header"><span class="card-title">3. Subscribe users</span></div>
+        <div class="card-header"><span class="card-title">3. Add widgets.js (recommended)</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Drop this script tag before <code>&lt;/body&gt;</code>. It handles SW registration, the push bell, and the install prompt automatically. The <code>key</code> is your project API key.</p>
+        <pre id="widgets-snippet">Loading...</pre>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">4. Identify logged-in users</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Call <code>window.scaffoldPush.identify(userId)</code> after the user logs in — or in a <code>useEffect</code> that fires when <code>user.id</code> changes. This links the browser's existing push subscription to your user ID so you can send targeted notifications later. It is non-destructive: it never unsubscribes or re-subscribes.</p>
+        <pre id="identify-snippet">Loading...</pre>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">5. Subscribe users manually (alternative to widgets.js)</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">If you are not using <code>widgets.js</code>, handle the subscribe flow yourself. Pass <code>userId</code> in the body to link the subscription from the start.</p>
         <pre id="subscribe-snippet">Loading...</pre>
       </div>
 
       <div class="card">
-        <div class="card-header"><span class="card-title">4. Send from your server</span></div>
+        <div class="card-header"><span class="card-title">6. Send notifications from your server</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Broadcast to all subscribers or target a specific user with <code>targetUserId</code>.</p>
         <pre id="server-snippet">Loading...</pre>
+      </div>
+    </div>
+
+    <!-- API Documentation -->
+    <div class="section" id="section-docs">
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">New Project Checklist</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Everything you need to wire up push notifications in a new app.</p>
+        <ol style="font-size:.82rem;color:var(--text-dim);line-height:1.9;padding-left:1.25rem">
+          <li>Create a project in the <strong>Projects</strong> tab — copy your API key</li>
+          <li>Set env vars on your app server: <code>PUSH_SERVICE_URL</code>, <code>PUSH_SERVICE_API_KEY</code></li>
+          <li>Add <code>public/sw.js</code> to your app (see Integration Guide step 2)</li>
+          <li>Add <code>widgets.js</code> script tag to your <code>index.html</code> (Integration Guide step 3)</li>
+          <li>Call <code>window.scaffoldPush.identify(userId)</code> on login (Integration Guide step 4)</li>
+          <li>Call <code>POST /notify</code> with <code>targetUserId</code> from your server when events occur</li>
+        </ol>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">Base URL</span></div>
+        <pre id="docs-base-url">Loading...</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">GET /vapid-public-key</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Returns the VAPID public key needed by the browser to create a push subscription. No authentication required.</p>
+        <pre>// Response
+{ "publicKey": "BExampleVapidPublicKey..." }</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">POST /subscribe</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Registers or updates a push subscription. Requires <code>x-api-key</code> header. If the endpoint already exists it is updated (upsert). Pass <code>userId</code> to link the subscription to a user in your system.</p>
+        <pre>// Headers
+x-api-key: YOUR_PROJECT_API_KEY
+Content-Type: application/json
+
+// Body
+{
+  "endpoint": "https://fcm.googleapis.com/...",
+  "keys": {
+    "p256dh": "...",
+    "auth": "..."
+  },
+  "userId": "42"          // optional — your internal user ID
+}
+
+// Response 201
+{ "id": 7, "endpoint": "https://fcm...", "userId": "42" }</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">POST /notify</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Sends a push notification. Requires <code>x-api-key</code> header. Omit <code>targetUserId</code> to broadcast to all subscribers.</p>
+        <pre>// Headers
+x-api-key: YOUR_PROJECT_API_KEY
+Content-Type: application/json
+
+// Body — broadcast to all subscribers
+{
+  "title": "New post",
+  "body": "Check out what's new in the community.",
+  "url": "https://yourapp.com/posts/42",
+  "icon": "https://yourapp.com/icon-512.png"   // optional
+}
+
+// Body — target one specific user
+{
+  "title": "You got a mention",
+  "body": "@alice mentioned you in a post.",
+  "url": "https://yourapp.com/posts/42",
+  "targetUserId": "7"    // your internal user ID passed to /subscribe
+}
+
+// Response
+{ "sent": 1, "failed": 0, "expired": 0 }</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">POST /unsubscribe</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Removes a push subscription by endpoint. Requires <code>x-api-key</code> header.</p>
+        <pre>// Headers
+x-api-key: YOUR_PROJECT_API_KEY
+Content-Type: application/json
+
+// Body
+{ "endpoint": "https://fcm.googleapis.com/..." }
+
+// Response
+{ "removed": true }</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">window.scaffoldPush.identify(userId)</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Available after <code>widgets.js</code> loads. Non-destructive — reads the current browser push subscription and posts it to <code>/subscribe</code> with your <code>userId</code>. Call this whenever the user logs in or on page load when the session is active.</p>
+        <pre>// React / any framework — call after login or in useEffect on user change
+window.scaffoldPush?.identify(user.id);
+
+// Express server-side — inject userId via session when browser calls /subscribe
+// (alternative to client-side identify when you proxy the subscribe call)
+app.post("/api/push/subscribe", requireAuth, async (req, res) => {
+  const userId = String(req.user.id);   // from session
+  await fetch(`${PUSH_SERVICE_URL}/subscribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": PUSH_SERVICE_API_KEY },
+    body: JSON.stringify({ ...req.body, userId }),
+  });
+});</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">Environment Variables (app server)</span></div>
+        <pre id="docs-env-vars">Loading...</pre>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">GET /health</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Liveness check. No authentication required.</p>
+        <pre>// Response
+{ "ok": true }</pre>
       </div>
     </div>
 
@@ -825,6 +965,7 @@ self.addEventListener("notificationclick", (event) => {
     history:   { title: 'History',            sub: 'Past notifications sent' },
     scheduled: { title: 'Scheduled', sub: 'Pending scheduled notifications' },
     integrate: { title: 'Integration Guide',  sub: 'Connect your apps to this service' },
+    docs:      { title: 'API Docs',           sub: 'Full API reference and environment setup' },
     widgets:   { title: 'UI Components',      sub: 'Drop-in widgets for your site' },
     pwa:       { title: 'PWA Setup',          sub: 'Make your app installable on any device' },
     install:   { title: 'Installation Page',  sub: 'Shareable install link for any browser or device' },
@@ -875,6 +1016,7 @@ self.addEventListener("notificationclick", (event) => {
     document.getElementById('page-sub').textContent = pages[page].sub;
 
     if (page === 'integrate') renderIntegrationGuide();
+    if (page === 'docs') renderDocs();
     if (page === 'widgets') renderWidgets();
     if (page === 'pwa') renderPwaSetup();
     if (page === 'install') renderInstallPage();
@@ -1318,8 +1460,24 @@ self.addEventListener("notificationclick", (event) => {
     document.getElementById('vapid-snippet').textContent =
       `GET ${BASE}/vapid-public-key\n\n// Response:\n{ "publicKey": "${publicKey}" }`;
 
+    document.getElementById('widgets-snippet').textContent =
+`<!-- Add before </body> in your index.html — replace KEY with your project API key -->
+<script defer src="${BASE}/widgets.js?key=YOUR_PROJECT_API_KEY"></script>`;
+
+    document.getElementById('identify-snippet').textContent =
+`// React — in auth context, fires on login and on page load with active session
+useEffect(() => {
+  if (user?.id) {
+    window.scaffoldPush?.identify(String(user.id));
+  }
+}, [user?.id]);
+
+// Vanilla JS — call after your login flow sets the user
+window.scaffoldPush?.identify("42");  // pass your internal user ID as a string`;
+
     document.getElementById('subscribe-snippet').textContent =
-`const { publicKey } = await fetch("${BASE}/vapid-public-key").then(r => r.json());
+`// Alternative to widgets.js — handle subscribe yourself
+const { publicKey } = await fetch("${BASE}/vapid-public-key").then(r => r.json());
 const reg = await navigator.serviceWorker.register("/sw.js");
 await navigator.serviceWorker.ready;
 
@@ -1334,11 +1492,15 @@ await fetch("${BASE}/subscribe", {
     "Content-Type": "application/json",
     "x-api-key": "YOUR_PROJECT_API_KEY",
   },
-  body: JSON.stringify(sub.toJSON()),
+  body: JSON.stringify({
+    ...sub.toJSON(),
+    userId: "42",   // optional — your internal user ID
+  }),
 });`;
 
     document.getElementById('server-snippet').textContent =
 `// Node.js / Express — send from your backend
+// Broadcast to all subscribers
 await fetch("${BASE}/notify", {
   method: "POST",
   headers: {
@@ -1346,11 +1508,37 @@ await fetch("${BASE}/notify", {
     "x-api-key": "YOUR_PROJECT_API_KEY",
   },
   body: JSON.stringify({
-    title: "Hello!",
-    body: "This is a push notification.",
-    url: "https://yourapp.com/page",
+    title: "New post!",
+    body: "Something new was just published.",
+    url: "https://yourapp.com/posts/42",
+  }),
+});
+
+// Target a specific user by their ID
+await fetch("${BASE}/notify", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-api-key": "YOUR_PROJECT_API_KEY",
+  },
+  body: JSON.stringify({
+    title: "You got a mention",
+    body: "@alice mentioned you in a post.",
+    url: "https://yourapp.com/posts/42",
+    targetUserId: "42",   // must match userId passed to /subscribe
   }),
 });`;
+  }
+
+  // ── Docs ──────────────────────────────────────────────────────
+
+  function renderDocs() {
+    const el = document.getElementById('docs-base-url');
+    if (el) el.textContent = BASE;
+    const env = document.getElementById('docs-env-vars');
+    if (env) env.textContent =
+`PUSH_SERVICE_URL=${BASE}
+PUSH_SERVICE_API_KEY=your_project_api_key`;
   }
 
   // ── Settings ──────────────────────────────────────────────────
