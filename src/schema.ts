@@ -45,6 +45,7 @@ export const subscriptions = pgTable("subscriptions", {
   p256dh: text("p256dh").notNull(),      // browser public key
   auth: text("auth").notNull(),          // browser auth secret
   userAgent: text("user_agent"),
+  userId: text("user_id"),              // optional — links subscription to an app user ID
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

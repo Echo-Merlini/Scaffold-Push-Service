@@ -113,6 +113,7 @@ export async function upsertSubscription(data: {
   p256dh: string;
   auth: string;
   userAgent?: string;
+  userId?: string;
 }) {
   const existing = await db.query.subscriptions.findFirst({
     where: eq(subscriptions.endpoint, data.endpoint),
@@ -140,6 +141,12 @@ export async function removeSubscription(endpoint: string) {
 
 export async function removeSubscriptionById(id: string) {
   await db.delete(subscriptions).where(eq(subscriptions.id, id));
+}
+
+export async function getSubscriptionsByUserId(projectId: string, userId: string) {
+  return db.query.subscriptions.findMany({
+    where: and(eq(subscriptions.projectId, projectId), eq(subscriptions.userId, userId)),
+  });
 }
 
 export async function getSubscriptionsForProject(projectId: string) {

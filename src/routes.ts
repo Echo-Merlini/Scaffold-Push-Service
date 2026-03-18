@@ -6,7 +6,7 @@ import {
   createProject, listProjects, deleteProject, updateProjectLogo,
   getProjectByApiKey, getProjectById, getProjectBySlug, updateProjectPwa, updateProjectWidgets,
   addScreenshot, deleteScreenshot, getScreenshotsForProject, getScreenshotById,
-  upsertSubscription, removeSubscription, removeSubscriptionById, getSubscriptionsForProject,
+  upsertSubscription, removeSubscription, removeSubscriptionById, getSubscriptionsForProject, getSubscriptionsByUserId,
   logNotification, getNotificationHistory,
   createScheduledNotification, getScheduledNotificationsForProject, cancelScheduledNotification,
 } from "./storage.js";
@@ -1139,11 +1139,12 @@ const subscribeSchema = z.object({
     p256dh: z.string(),
     auth: z.string(),
   }),
+  userId: z.string().optional(),
 });
 
 router.post("/subscribe", requireApiKey, async (req, res) => {
   const project = (req as any).project;
-  const { endpoint, keys } = subscribeSchema.parse(req.body);
+  const { endpoint, keys, userId } = subscribeSchema.parse(req.body);
 
   const sub = await upsertSubscription({
     projectId: project.id,
@@ -1151,6 +1152,7 @@ router.post("/subscribe", requireApiKey, async (req, res) => {
     p256dh: keys.p256dh,
     auth: keys.auth,
     userAgent: req.headers["user-agent"],
+    userId,
   });
 
   res.status(201).json({ id: sub.id });
@@ -1173,6 +1175,7 @@ const notifySchema = z.object({
   image: z.string().url().optional(),
   scheduledAt: z.string().optional(),
   actions: z.array(z.object({ action: z.string(), title: z.string(), url: z.string().optional() })).max(2).optional(),
+  targetUserId: z.string().optional(),
 });
 
 router.post("/notify", requireApiKey, async (req, res) => {
@@ -1214,7 +1217,9 @@ router.post("/notify", requireApiKey, async (req, res) => {
   };
   if (body.actions?.length) finalPayload.actions = body.actions;
 
-  const subs = await getSubscriptionsForProject(project.id);
+  const subs = body.targetUserId
+    ? await getSubscriptionsByUserId(project.id, body.targetUserId)
+    : await getSubscriptionsForProject(project.id);
   if (subs.length === 0) {
     res.json({ sent: 0, failed: 0, expired: 0 });
     return;
