@@ -936,15 +936,19 @@ self.addEventListener("notificationclick", (event) => {
         return;
       }
       el.innerHTML = '<table class="table" style="margin:0"><thead><tr>' +
-        '<th>Browser / Device</th><th>Subscribed</th><th>Endpoint (…)</th><th></th>' +
+        '<th>Browser / Device</th><th>User ID</th><th>Subscribed</th><th>Endpoint (…)</th><th></th>' +
         '</tr></thead><tbody>' +
         subs.map(function(s) {
           var ua = parseUA(s.userAgent);
           var platform = detectPlatform(s.userAgent);
           var platformBadge = '<span style="display:inline-block;padding:.1rem .45rem;border-radius:20px;font-size:.68rem;font-weight:600;background:' + (PLATFORM_COLORS[platform]||'#374151') + '22;color:' + (PLATFORM_COLORS[platform]||'#6b7280') + ';margin-right:.4rem">' + platform + '</span>';
           var date = s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—';
+          var userIdBadge = s.userId
+            ? '<code style="background:#065f4622;color:#34d399;padding:.1rem .35rem;border-radius:4px">' + s.userId + '</code>'
+            : '<span style="color:var(--muted);font-size:.75rem">—</span>';
           return '<tr>' +
             '<td style="color:var(--text)">' + platformBadge + ua + '</td>' +
+            '<td>' + userIdBadge + '</td>' +
             '<td>' + date + '</td>' +
             '<td><code>…' + (s.endpointHint || '?') + '</code></td>' +
             '<td><button class="btn btn-danger" style="padding:.2rem .55rem;font-size:.72rem" onclick="removeSubscriber(\'' + s.id + '\',\'' + projectId + '\')">Remove</button></td>' +
