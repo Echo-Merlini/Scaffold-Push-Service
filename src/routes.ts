@@ -590,6 +590,27 @@ router.get("/widgets.js", async (req, res) => {
     };
   }
 
+  /* Identify: link a userId to the existing push subscription  */
+  /* Usage: window.scaffoldPush.identify('userId123')           */
+  window.scaffoldPush = {
+    identify: async function(userId){
+      if(!('serviceWorker' in navigator && 'PushManager' in window)) return false;
+      try{
+        var reg = await navigator.serviceWorker.getRegistration('/sw.js');
+        if(!reg) return false;
+        var sub = await reg.pushManager.getSubscription();
+        if(!sub) return false;
+        var j = sub.toJSON();
+        await fetch(PUSH+'/subscribe',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','x-api-key':KEY},
+          body:JSON.stringify({endpoint:j.endpoint,keys:j.keys,userId:String(userId)})
+        });
+        return true;
+      }catch(e){ return false; }
+    }
+  };
+
   /* ── Init ── */
   document.addEventListener('DOMContentLoaded',function(){
     registerSW();
