@@ -6,6 +6,8 @@ import { sql } from "drizzle-orm";
 import { db } from "./db.js";
 import { initWebPush } from "./push.js";
 import { router } from "./routes.js";
+import { getDueScheduledNotifications, markScheduledNotificationSent, getSubscriptionsForProject, removeSubscription, logNotification } from "./storage.js";
+import { sendToSubscription } from "./push.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -42,10 +44,51 @@ async function runMigrations() {
       created_at TIMESTAMP DEFAULT NOW() NOT NULL
     )
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS scheduled_notifications (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      url TEXT,
+      image TEXT,
+      icon TEXT,
+      actions TEXT,
+      scheduled_at TIMESTAMP NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
+  `);
 }
 
 await runMigrations();
 initWebPush();
+
+// Background scheduler — fires due scheduled notifications every 60 seconds
+setInterval(async () => {
+  try {
+    const due = await getDueScheduledNotifications();
+    for (const sn of due) {
+      await markScheduledNotificationSent(sn.id);
+      const subs = await getSubscriptionsForProject(sn.projectId);
+      if (!subs.length) continue;
+      const payload: any = { title: sn.title, body: sn.body };
+      if (sn.url)     payload.url     = sn.url;
+      if (sn.image)   payload.image   = sn.image;
+      if (sn.icon)    payload.icon    = sn.icon;
+      if (sn.actions) payload.actions = JSON.parse(sn.actions);
+      let sent = 0, failed = 0;
+      const expired: string[] = [];
+      await Promise.all(subs.map(async (sub) => {
+        const r = await sendToSubscription(sub, payload);
+        if (r.success) { sent++; }
+        else { failed++; if (r.expired) expired.push(sub.endpoint); }
+      }));
+      for (const ep of expired) await removeSubscription(ep);
+      await logNotification({ projectId: sn.projectId, title: sn.title, body: sn.body, url: sn.url || undefined, image: sn.image || undefined, successCount: sent, failureCount: failed });
+    }
+  } catch (e) { console.error("[scheduler]", e); }
+}, 60_000);
 
 const app = express();
 app.use(express.json());

@@ -60,3 +60,18 @@ export const notificationLog = pgTable("notification_log", {
   successCount: integer("success_count").notNull().default(0),
   failureCount: integer("failure_count").notNull().default(0),
 });
+
+// Scheduled push notifications (sent by background job when scheduledAt is due)
+export const scheduledNotifications = pgTable("scheduled_notifications", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  url: text("url"),
+  image: text("image"),
+  icon: text("icon"),      // resolved icon URL stored at schedule time
+  actions: text("actions"), // JSON: [{action,title,url}]
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  status: text("status").notNull().default("pending"), // pending | sent | cancelled
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

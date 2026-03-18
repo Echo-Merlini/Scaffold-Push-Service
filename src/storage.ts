@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, lte, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "./db.js";
-import { projects, subscriptions, notificationLog, screenshots } from "./schema.js";
+import { projects, subscriptions, notificationLog, screenshots, scheduledNotifications } from "./schema.js";
 
 // --- Projects ---
 
@@ -168,5 +168,45 @@ export async function getNotificationHistory(projectId: string) {
     where: eq(notificationLog.projectId, projectId),
     orderBy: (t, { desc }) => [desc(t.sentAt)],
     limit: 100,
+  });
+}
+
+// --- Scheduled Notifications ---
+
+export async function createScheduledNotification(data: {
+  projectId: string;
+  title: string;
+  body: string;
+  url?: string;
+  image?: string;
+  icon?: string;
+  actions?: string;
+  scheduledAt: Date;
+}) {
+  const [row] = await db.insert(scheduledNotifications).values({ id: nanoid(), ...data, status: "pending" }).returning();
+  return row;
+}
+
+export async function getDueScheduledNotifications() {
+  return db.query.scheduledNotifications.findMany({
+    where: and(
+      eq(scheduledNotifications.status, "pending"),
+      lte(scheduledNotifications.scheduledAt, new Date())
+    ),
+  });
+}
+
+export async function markScheduledNotificationSent(id: string) {
+  await db.update(scheduledNotifications).set({ status: "sent" }).where(eq(scheduledNotifications.id, id));
+}
+
+export async function cancelScheduledNotification(id: string) {
+  await db.update(scheduledNotifications).set({ status: "cancelled" }).where(eq(scheduledNotifications.id, id));
+}
+
+export async function getScheduledNotificationsForProject(projectId: string) {
+  return db.query.scheduledNotifications.findMany({
+    where: and(eq(scheduledNotifications.projectId, projectId), eq(scheduledNotifications.status, "pending")),
+    orderBy: (t, { asc }) => [asc(t.scheduledAt)],
   });
 }

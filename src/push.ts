@@ -17,6 +17,7 @@ export interface PushPayload {
   icon?: string;
   badge?: string;
   image?: string;
+  actions?: { action: string; title: string; url?: string }[];
 }
 
 export async function sendToSubscription(

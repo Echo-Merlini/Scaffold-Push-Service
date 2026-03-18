@@ -375,6 +375,10 @@
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       History
     </div>
+    <a class="nav-item" onclick="navigate('scheduled')" id="nav-scheduled">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Scheduled
+    </a>
     <div class="nav-section">Developer</div>
     <div class="nav-item" onclick="navigate('integrate')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -440,13 +444,13 @@
           <select id="send-project" onchange="updateSendSubCount()"></select>
           <span id="send-sub-count" style="font-size:.8rem;color:var(--text-dim);white-space:nowrap"></span>
         </div>
-        <div class="label">Title</div>
+        <div class="label" style="display:flex;justify-content:space-between"><span>Title</span><span id="send-title-count" style="color:var(--muted);font-size:.75rem">0/50</span></div>
         <div class="form-row">
-          <input type="text" id="send-title" placeholder="Notification title" />
+          <input type="text" id="send-title" placeholder="Notification title" maxlength="50" oninput="document.getElementById('send-title-count').textContent=this.value.length+'/50'" />
         </div>
-        <div class="label">Body</div>
+        <div class="label" style="display:flex;justify-content:space-between"><span>Body</span><span id="send-body-count" style="color:var(--muted);font-size:.75rem">0/100</span></div>
         <div class="form-row">
-          <textarea id="send-body" placeholder="Notification message"></textarea>
+          <textarea id="send-body" placeholder="Notification message" maxlength="100" oninput="document.getElementById('send-body-count').textContent=this.value.length+'/100'"></textarea>
         </div>
         <div class="label">Image URL — large image in notification body (optional)</div>
         <div class="form-row">
@@ -456,7 +460,29 @@
         <div class="form-row">
           <input type="text" id="send-url" placeholder="https://yourapp.com/page" />
         </div>
-        <button class="btn" onclick="sendMessage()">Send to All Subscribers</button>
+
+        <!-- Action Buttons -->
+        <div class="label" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Action Buttons <span style="color:var(--muted);font-weight:400">(optional, max 2)</span></span>
+        </div>
+        <div id="send-actions" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.75rem"></div>
+        <button class="btn btn-ghost" id="add-action-btn" onclick="addActionBtn()" style="font-size:.8rem;margin-bottom:1rem">+ Add action button</button>
+
+        <!-- Schedule -->
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;color:var(--text-dim)">
+            <input type="checkbox" id="send-schedule-toggle" onchange="toggleSchedule()" style="width:16px;height:16px;cursor:pointer">
+            Schedule for later
+          </label>
+        </div>
+        <div id="send-schedule-row" style="display:none;margin-bottom:1rem">
+          <div class="label">Send at</div>
+          <div class="form-row">
+            <input type="datetime-local" id="send-schedule-at" style="font-family:inherit" />
+          </div>
+        </div>
+
+        <button class="btn" id="send-btn" onclick="sendMessage()">Send to All Subscribers</button>
         <div id="send-result" style="margin-top:.75rem;font-size:.82rem;color:var(--text-dim)"></div>
       </div>
     </div>
@@ -484,6 +510,16 @@
       </div>
     </div>
 
+    <!-- Scheduled -->
+    <div class="section" id="section-scheduled">
+      <div class="form-row" style="margin-bottom:1.25rem">
+        <select id="scheduled-project" onchange="loadScheduled()"></select>
+      </div>
+      <div id="scheduled-list">
+        <div style="color:var(--muted);font-size:.82rem">Select a project</div>
+      </div>
+    </div>
+
     <!-- Integration Guide -->
     <div class="section" id="section-integrate">
       <div class="card">
@@ -506,14 +542,29 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: data.icon || "/favicon.png",
-      data: { url: data.url || "/" },
+      badge: data.badge || "/favicon.png",
+      image: data.image || undefined,
+      data: { url: data.url || "/", actions: data.actions || [] },
+      actions: (data.actions || []).map(a => ({ action: a.action, title: a.title })),
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  clients.openWindow(event.notification.data?.url || "/");
+  const action = event.action;
+  const data = event.notification.data || {};
+  let url = data.url || "/";
+  if (action && data.actions) {
+    const found = (data.actions || []).find(a => a.action === action);
+    if (found && found.url) url = found.url;
+  }
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      for (const c of list) { if (c.url === url && "focus" in c) return c.focus(); }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
 });</pre>
       </div>
 
@@ -772,6 +823,7 @@ self.addEventListener("notificationclick", (event) => {
     projects:  { title: 'Projects',           sub: 'Manage your connected apps' },
     send:      { title: 'Send Message',       sub: 'Broadcast a push notification' },
     history:   { title: 'History',            sub: 'Past notifications sent' },
+    scheduled: { title: 'Scheduled', sub: 'Pending scheduled notifications' },
     integrate: { title: 'Integration Guide',  sub: 'Connect your apps to this service' },
     widgets:   { title: 'UI Components',      sub: 'Drop-in widgets for your site' },
     pwa:       { title: 'PWA Setup',          sub: 'Make your app installable on any device' },
@@ -828,6 +880,7 @@ self.addEventListener("notificationclick", (event) => {
     if (page === 'install') renderInstallPage();
     if (page === 'settings') renderSettings();
     if (page === 'history') loadHistory();
+    if (page === 'scheduled') renderScheduled();
   }
 
   // ── Overview ─────────────────────────────────────────────────
@@ -887,9 +940,11 @@ self.addEventListener("notificationclick", (event) => {
         '</tr></thead><tbody>' +
         subs.map(function(s) {
           var ua = parseUA(s.userAgent);
+          var platform = detectPlatform(s.userAgent);
+          var platformBadge = '<span style="display:inline-block;padding:.1rem .45rem;border-radius:20px;font-size:.68rem;font-weight:600;background:' + (PLATFORM_COLORS[platform]||'#374151') + '22;color:' + (PLATFORM_COLORS[platform]||'#6b7280') + ';margin-right:.4rem">' + platform + '</span>';
           var date = s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—';
           return '<tr>' +
-            '<td style="color:var(--text)">' + ua + '</td>' +
+            '<td style="color:var(--text)">' + platformBadge + ua + '</td>' +
             '<td>' + date + '</td>' +
             '<td><code>…' + (s.endpointHint || '?') + '</code></td>' +
             '<td><button class="btn btn-danger" style="padding:.2rem .55rem;font-size:.72rem" onclick="removeSubscriber(\'' + s.id + '\',\'' + projectId + '\')">Remove</button></td>' +
@@ -1013,7 +1068,7 @@ self.addEventListener("notificationclick", (event) => {
   // ── Send ──────────────────────────────────────────────────────
 
   function populateProjectSelects() {
-    ['send-project', 'history-project', 'widgets-project', 'pwa-project', 'install-project'].forEach(id => {
+    ['send-project', 'history-project', 'scheduled-project', 'widgets-project', 'pwa-project', 'install-project'].forEach(id => {
       const sel = document.getElementById(id);
       const current = sel.value;
       sel.innerHTML = projects.map(p => `<option value="${p.id}" data-key="${p.apiKey}">${p.name}</option>`).join('');
@@ -1034,6 +1089,98 @@ self.addEventListener("notificationclick", (event) => {
     } catch { if (el) el.textContent = ''; }
   }
 
+  // ── Action buttons in send form ──
+  var sendActions = [];
+
+  function addActionBtn() {
+    if (sendActions.length >= 2) return;
+    var idx = sendActions.length;
+    sendActions.push({ action: 'action_' + idx, title: '', url: '' });
+    renderActionBtns();
+  }
+
+  function removeActionBtn(idx) {
+    sendActions.splice(idx, 1);
+    sendActions.forEach(function(a, i) { a.action = 'action_' + i; });
+    renderActionBtns();
+  }
+
+  function renderActionBtns() {
+    var container = document.getElementById('send-actions');
+    var addBtn = document.getElementById('add-action-btn');
+    container.innerHTML = sendActions.map(function(a, i) {
+      return '<div style="display:flex;gap:.5rem;align-items:center">' +
+        '<input type="text" placeholder="Label (e.g. View)" maxlength="20" value="' + a.title + '" oninput="sendActions[' + i + '].title=this.value" style="flex:1" />' +
+        '<input type="text" placeholder="URL" value="' + a.url + '" oninput="sendActions[' + i + '].url=this.value" style="flex:2" />' +
+        '<button onclick="removeActionBtn(' + i + ')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:.25rem">✕</button>' +
+        '</div>';
+    }).join('');
+    if (addBtn) addBtn.style.display = sendActions.length >= 2 ? 'none' : '';
+  }
+
+  // ── Schedule toggle ──
+  function toggleSchedule() {
+    var checked = document.getElementById('send-schedule-toggle').checked;
+    document.getElementById('send-schedule-row').style.display = checked ? '' : 'none';
+    document.getElementById('send-btn').textContent = checked ? 'Schedule Notification' : 'Send to All Subscribers';
+  }
+
+  // ── Scheduled notifications section ──
+  async function loadScheduled() {
+    var sel = document.getElementById('scheduled-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    var container = document.getElementById('scheduled-list');
+    if (!opt || !opt.value) { container.innerHTML = '<div style="color:var(--muted);font-size:.82rem">Select a project</div>'; return; }
+    try {
+      var res = await fetch(BASE + '/admin/projects/' + opt.value + '/scheduled', { headers: { 'x-admin-key': ADMIN_KEY } });
+      var rows = await res.json();
+      if (!rows.length) {
+        container.innerHTML = '<div style="color:var(--muted);font-size:.82rem;padding:.75rem 0">No scheduled notifications pending.</div>';
+        return;
+      }
+      container.innerHTML = rows.map(function(r) {
+        var dt = new Date(r.scheduledAt);
+        var actions = r.actions ? JSON.parse(r.actions) : [];
+        return '<div class="card" style="display:flex;align-items:flex-start;gap:1rem;padding:.85rem 1rem;margin-bottom:.5rem">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-weight:600;font-size:.88rem;margin-bottom:.2rem">' + r.title + '</div>' +
+            '<div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.35rem">' + r.body + '</div>' +
+            (actions.length ? '<div style="font-size:.72rem;color:var(--muted)">' + actions.map(function(a){return '['+ a.title +']';}).join(' ') + '</div>' : '') +
+          '</div>' +
+          '<div style="text-align:right;flex-shrink:0">' +
+            '<div style="font-size:.75rem;color:var(--muted);margin-bottom:.4rem">🕐 ' + dt.toLocaleString() + '</div>' +
+            '<button class="btn btn-ghost" style="font-size:.75rem;padding:.25rem .65rem;color:#f87171;border-color:#f87171" onclick="cancelScheduled(\'' + r.id + '\')">Cancel</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    } catch(e) { container.innerHTML = '<div style="color:#f87171;font-size:.82rem">Failed to load</div>'; }
+  }
+
+  async function cancelScheduled(id) {
+    if (!confirm('Cancel this scheduled notification?')) return;
+    await fetch(BASE + '/admin/scheduled/' + id, { method: 'DELETE', headers: { 'x-admin-key': ADMIN_KEY } });
+    loadScheduled();
+    toast('Cancelled');
+  }
+
+  async function renderScheduled() {
+    loadScheduled();
+  }
+
+  // ── Platform detection for subscriber list ──
+  function detectPlatform(ua) {
+    if (!ua) return 'Unknown';
+    var u = ua.toLowerCase();
+    if (u.includes('android')) return 'Android';
+    if (u.includes('iphone') || u.includes('ipad') || u.includes('ipod')) return 'iOS';
+    if (u.includes('windows')) return 'Windows';
+    if (u.includes('mac os') || u.includes('macintosh')) return 'macOS';
+    if (u.includes('linux')) return 'Linux';
+    return 'Other';
+  }
+
+  var PLATFORM_COLORS = { Android: '#4ade80', iOS: '#60a5fa', Windows: '#a78bfa', macOS: '#f472b6', Linux: '#fb923c', Other: '#6b7280', Unknown: '#374151' };
+
   async function sendMessage() {
     const sel = document.getElementById('send-project');
     const option = sel.options[sel.selectedIndex];
@@ -1042,12 +1189,18 @@ self.addEventListener("notificationclick", (event) => {
     const body = document.getElementById('send-body').value.trim();
     const url = document.getElementById('send-url').value.trim();
     const image = document.getElementById('send-image').value.trim();
+    const scheduled = document.getElementById('send-schedule-toggle').checked;
+    const scheduledAt = document.getElementById('send-schedule-at').value;
 
     if (!title || !body) { toast('Title and body required'); return; }
+    if (scheduled && !scheduledAt) { toast('Pick a date and time to schedule'); return; }
 
     const payload = { title, body };
     if (url) payload.url = url;
     if (image) payload.image = image;
+    if (scheduled) payload.scheduledAt = scheduledAt;
+    const validActions = sendActions.filter(function(a) { return a.title.trim(); });
+    if (validActions.length) payload.actions = validActions.map(function(a) { return { action: a.action, title: a.title.trim(), url: a.url.trim() || undefined }; });
 
     const res = await fetch(`${BASE}/notify`, {
       method: 'POST',
@@ -1056,12 +1209,21 @@ self.addEventListener("notificationclick", (event) => {
     });
     const data = await res.json();
     var resultEl = document.getElementById('send-result');
+    if (data.scheduled) {
+      const dt = new Date(data.scheduledAt);
+      resultEl.textContent = '✓ Scheduled for ' + dt.toLocaleString();
+      toast('Notification scheduled');
+      // Reset schedule toggle
+      document.getElementById('send-schedule-toggle').checked = false;
+      toggleSchedule();
+      return;
+    }
     var summary = `Delivered: ${data.sent}  ·  Failed: ${data.failed}  ·  Expired removed: ${data.expired}`;
     if (data.failed > 0 && data.errorStatus) {
       summary += `\nFailure reason: HTTP ${data.errorStatus} — ${data.errorBody || 'unknown'}`;
     }
     if (data.sent === 0 && data.failed === 0 && data.expired === 0) {
-      summary += '\n⚠ No subscribers found for this project. Make sure subscribers opted in using this project\'s API key.';
+      summary += '\n⚠ No subscribers found for this project.';
     }
     resultEl.style.whiteSpace = 'pre-wrap';
     resultEl.textContent = summary;
@@ -1831,12 +1993,19 @@ await fetch("${BASE}/notify", {
       '  e.waitUntil(self.registration.showNotification(d.title || "Notification", {',
       '    body: d.body || "", icon: d.icon || "/favicon.png",',
       '    badge: d.badge || "/favicon.png", image: d.image || undefined,',
-      '    data: { url: d.url || "/" },',
+      '    data: { url: d.url || "/", actions: d.actions || [] },',
+      '    actions: (d.actions || []).map(function(a){ return { action: a.action, title: a.title }; }),',
       '  }));',
       '});',
       'self.addEventListener("notificationclick", function(e) {',
       '  e.notification.close();',
-      '  var url = e.notification.data && e.notification.data.url || "/";',
+      '  var action = e.action;',
+      '  var data = e.notification.data || {};',
+      '  var url = data.url || "/";',
+      '  if (action && data.actions) {',
+      '    var found = (data.actions || []).find(function(a){ return a.action === action; });',
+      '    if (found && found.url) url = found.url;',
+      '  }',
       '  e.waitUntil(clients.matchAll({type:"window",includeUncontrolled:true}).then(function(list){',
       '    for(var i=0;i<list.length;i++){if(list[i].url===url&&"focus"in list[i])return list[i].focus();}',
       '    if(clients.openWindow)return clients.openWindow(url);',

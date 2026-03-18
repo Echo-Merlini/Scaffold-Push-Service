@@ -8,6 +8,7 @@ import {
   addScreenshot, deleteScreenshot, getScreenshotsForProject, getScreenshotById,
   upsertSubscription, removeSubscription, removeSubscriptionById, getSubscriptionsForProject,
   logNotification, getNotificationHistory,
+  createScheduledNotification, getScheduledNotificationsForProject, cancelScheduledNotification,
 } from "./storage.js";
 import { sendToSubscription } from "./push.js";
 import { processLogo } from "./image.js";
@@ -1170,21 +1171,48 @@ const notifySchema = z.object({
   icon: z.string().optional(),   // overrides project logo if provided
   badge: z.string().optional(),
   image: z.string().url().optional(),
+  scheduledAt: z.string().optional(),
+  actions: z.array(z.object({ action: z.string(), title: z.string(), url: z.string().optional() })).max(2).optional(),
 });
 
 router.post("/notify", requireApiKey, async (req, res) => {
   const project = (req as any).project;
-  const payload = notifySchema.parse(req.body);
+  const body = notifySchema.parse(req.body);
 
   // Use hosted icon URL (not base64 data URL — push payload must be < 4096 bytes)
   const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol;
   const base  = `${proto}://${req.get("host")}`;
   const iconUrl = project.logo ? `${base}/pwa/icon/${project.id}/192.png` : undefined;
 
-  const finalPayload = {
-    ...payload,
-    icon: payload.icon ?? iconUrl,
+  // If scheduledAt is provided, store as scheduled and return immediately
+  if (body.scheduledAt) {
+    const scheduledDate = new Date(body.scheduledAt);
+    if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+      res.status(400).json({ error: "scheduledAt must be a valid future datetime" }); return;
+    }
+    await createScheduledNotification({
+      projectId: project.id,
+      title: body.title,
+      body: body.body,
+      url: body.url,
+      image: body.image,
+      icon: project.logo ? `${base}/pwa/icon/${project.id}/192.png` : undefined,
+      actions: body.actions ? JSON.stringify(body.actions) : undefined,
+      scheduledAt: scheduledDate,
+    });
+    res.json({ scheduled: true, scheduledAt: scheduledDate });
+    return;
+  }
+
+  const finalPayload: any = {
+    title: body.title,
+    body: body.body,
+    url: body.url,
+    icon: body.icon ?? iconUrl,
+    badge: body.badge,
+    image: body.image,
   };
+  if (body.actions?.length) finalPayload.actions = body.actions;
 
   const subs = await getSubscriptionsForProject(project.id);
   if (subs.length === 0) {
@@ -1204,10 +1232,10 @@ router.post("/notify", requireApiKey, async (req, res) => {
 
   await logNotification({
     projectId: project.id,
-    title: payload.title,
-    body: payload.body,
-    url: payload.url,
-    image: payload.image,
+    title: body.title,
+    body: body.body,
+    url: body.url,
+    image: body.image,
     successCount,
     failureCount,
   });
@@ -1220,6 +1248,18 @@ router.post("/notify", requireApiKey, async (req, res) => {
     expired: expired.length,
     ...(firstFailure ? { errorStatus: firstFailure.errorStatus, errorBody: firstFailure.errorBody } : {}),
   });
+});
+
+// List pending scheduled notifications for a project
+router.get("/admin/projects/:id/scheduled", requireAdminKey, async (req, res) => {
+  const rows = await getScheduledNotificationsForProject(req.params.id);
+  res.json(rows);
+});
+
+// Cancel a scheduled notification
+router.delete("/admin/scheduled/:id", requireAdminKey, async (req, res) => {
+  await cancelScheduledNotification(req.params.id);
+  res.json({ ok: true });
 });
 
 // ── Notification history ──────────────────────────────────────────────────────
