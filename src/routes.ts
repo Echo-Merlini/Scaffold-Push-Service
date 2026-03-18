@@ -1146,6 +1146,8 @@ router.post("/subscribe", requireApiKey, async (req, res) => {
   const project = (req as any).project;
   const { endpoint, keys, userId } = subscribeSchema.parse(req.body);
 
+  console.log(`[subscribe] projectId=${project.id} userId=${userId ?? "NONE"} endpoint=${endpoint.slice(0, 60)}...`);
+
   const sub = await upsertSubscription({
     projectId: project.id,
     endpoint,
