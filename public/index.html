@@ -490,6 +490,20 @@
         <div id="send-actions" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.75rem"></div>
         <button class="btn btn-ghost" id="add-action-btn" onclick="addActionBtn()" style="font-size:.8rem;margin-bottom:1rem">+ Add action button</button>
 
+        <!-- Target user -->
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;color:var(--text-dim)">
+            <input type="checkbox" id="send-target-toggle" onchange="toggleTarget()" style="width:16px;height:16px;cursor:pointer">
+            Send to specific user
+          </label>
+        </div>
+        <div id="send-target-row" style="display:none;margin-bottom:1rem">
+          <div class="label">User ID <span style="color:var(--muted);font-weight:400">(must match userId passed to /subscribe)</span></div>
+          <div class="form-row">
+            <input type="text" id="send-target-userid" placeholder="e.g. 42 or alice" />
+          </div>
+        </div>
+
         <!-- Schedule -->
         <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem">
           <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.85rem;color:var(--text-dim)">
@@ -1462,11 +1476,28 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
     if (addBtn) addBtn.style.display = sendActions.length >= 2 ? 'none' : '';
   }
 
+  // ── Target user toggle ──
+  function toggleTarget() {
+    var checked = document.getElementById('send-target-toggle').checked;
+    document.getElementById('send-target-row').style.display = checked ? '' : 'none';
+    if (!checked) document.getElementById('send-target-userid').value = '';
+    updateSendBtnLabel();
+  }
+
   // ── Schedule toggle ──
   function toggleSchedule() {
     var checked = document.getElementById('send-schedule-toggle').checked;
     document.getElementById('send-schedule-row').style.display = checked ? '' : 'none';
-    document.getElementById('send-btn').textContent = checked ? 'Schedule Notification' : 'Send to All Subscribers';
+    updateSendBtnLabel();
+  }
+
+  function updateSendBtnLabel() {
+    var scheduled = document.getElementById('send-schedule-toggle').checked;
+    var targeted  = document.getElementById('send-target-toggle').checked;
+    var label = scheduled
+      ? (targeted ? 'Schedule for User' : 'Schedule Notification')
+      : (targeted ? 'Send to User'      : 'Send to All Subscribers');
+    document.getElementById('send-btn').textContent = label;
   }
 
   // ── Scheduled notifications section ──
@@ -1536,13 +1567,18 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
     const scheduled = document.getElementById('send-schedule-toggle').checked;
     const scheduledAt = document.getElementById('send-schedule-at').value;
 
+    const targeted   = document.getElementById('send-target-toggle').checked;
+    const targetUserId = document.getElementById('send-target-userid').value.trim();
+
     if (!title || !body) { toast('Title and body required'); return; }
     if (scheduled && !scheduledAt) { toast('Pick a date and time to schedule'); return; }
+    if (targeted && !targetUserId) { toast('Enter a User ID to target'); return; }
 
     const payload = { title, body };
     if (url) payload.url = url;
     if (image) payload.image = image;
     if (scheduled) payload.scheduledAt = scheduledAt;
+    if (targeted && targetUserId) payload.targetUserId = targetUserId;
     const validActions = sendActions.filter(function(a) { return a.title.trim(); });
     if (validActions.length) payload.actions = validActions.map(function(a) { return { action: a.action, title: a.title.trim(), url: a.url.trim() || undefined }; });
 
@@ -1567,7 +1603,7 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
       summary += `\nFailure reason: HTTP ${data.errorStatus} — ${data.errorBody || 'unknown'}`;
     }
     if (data.sent === 0 && data.failed === 0 && data.expired === 0) {
-      summary += '\n⚠ No subscribers found for this project.';
+      summary += targeted ? '\n⚠ No subscriber found for that User ID.' : '\n⚠ No subscribers found for this project.';
     }
     resultEl.style.whiteSpace = 'pre-wrap';
     resultEl.textContent = summary;
