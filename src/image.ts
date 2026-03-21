@@ -57,6 +57,29 @@ function isSvgBuffer(buffer: Buffer): boolean {
   return head.startsWith("<svg") || head.startsWith("<?xml") || head.includes("<svg");
 }
 
+const SCREENSHOT_W = 900;
+const SCREENSHOT_H = 1600;
+
+/** Resize a screenshot to 900×1600 (portrait) for the Android install prompt. */
+export async function processScreenshot(buffer: Buffer): Promise<{
+  data: string;   // data:image/png;base64,...
+  width: number;
+  height: number;
+  formFactor: "narrow" | "wide";
+}> {
+  validateImageSize(buffer.length);
+  const resized = await sharp(buffer)
+    .resize(SCREENSHOT_W, SCREENSHOT_H, { fit: "cover", position: "centre" })
+    .png()
+    .toBuffer();
+  return {
+    data: `data:image/png;base64,${resized.toString("base64")}`,
+    width: SCREENSHOT_W,
+    height: SCREENSHOT_H,
+    formFactor: "narrow",
+  };
+}
+
 export async function processLogo(buffer: Buffer): Promise<{
   logo: string;       // 192×192 PNG — notification icon
   logo512: string;    // 512×512 PNG — PWA app icon

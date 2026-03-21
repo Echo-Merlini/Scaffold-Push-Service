@@ -11,7 +11,7 @@ import {
   createScheduledNotification, getScheduledNotificationsForProject, cancelScheduledNotification,
 } from "./storage.js";
 import { sendToSubscription } from "./push.js";
-import { processLogo } from "./image.js";
+import { processLogo, processScreenshot } from "./image.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -130,19 +130,12 @@ router.post("/admin/projects/:id/screenshots", requireAdminKey,
 
     if (req.file.size > 3 * 1024 * 1024) { res.status(400).json({ error: "Screenshot must be under 3MB" }); return; }
 
-    // Get dimensions using sharp
-    const { default: sharpLib } = await import("sharp");
-    const meta = await sharpLib(req.file.buffer).metadata();
-    const width  = meta.width  || 0;
-    const height = meta.height || 0;
-    const formFactor = width > height ? "wide" : "narrow";
-    const mimeType = req.file.mimetype || "image/png";
-    const dataUrl = `data:${mimeType};base64,${req.file.buffer.toString("base64")}`;
+    const { data, width, height, formFactor } = await processScreenshot(req.file.buffer);
 
     const s = await addScreenshot({
       projectId: req.params.id,
-      data: dataUrl,
-      mimeType,
+      data,
+      mimeType: "image/png",
       width,
       height,
       formFactor,
