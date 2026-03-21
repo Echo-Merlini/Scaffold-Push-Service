@@ -20,6 +20,8 @@ export const projects = pgTable("projects", {
   pwaDescription: text("pwa_description"), // shown on the install page
   pwaYoutubeUrl: text("pwa_youtube_url"),   // YouTube embed on install page
   installSlug: text("install_slug").unique(), // custom URL slug e.g. "goblinarinos"
+  seoImage: text("seo_image"),               // social sharing OG image — data URL or external URL
+  seoIndexable: text("seo_indexable").default("true"), // "true" | "false"
   widgetsConfig: text("widgets_config").default("{}"), // JSON: { bell, banner, install }
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

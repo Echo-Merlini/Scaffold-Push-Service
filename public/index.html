@@ -1016,7 +1016,7 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
         </div>
 
         <div style="margin-bottom:1rem">
-          <div class="label">Description <span style="color:var(--muted);font-weight:400">(shown below the app name)</span></div>
+          <div class="label">Description / Meta Description <span style="color:var(--muted);font-weight:400">(shown on the page + used as SEO meta description)</span></div>
           <textarea id="install-description" rows="3" placeholder="A short description of your app…" style="width:100%;resize:vertical"></textarea>
         </div>
 
@@ -1025,6 +1025,36 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
           <div style="display:flex;align-items:stretch">
             <span style="display:flex;align-items:center;padding:0 .6rem;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:var(--radius) 0 0 var(--radius);font-size:.78rem;color:var(--muted);white-space:nowrap;user-select:none">youtube.com/embed/</span>
             <input type="text" id="install-youtube-url" placeholder="dQw4w9WgXcQ" style="border-radius:0 var(--radius) var(--radius) 0;flex:1;min-width:0" />
+          </div>
+        </div>
+
+        <!-- SEO section -->
+        <div style="border-top:1px solid var(--border);margin:1.25rem 0 1.25rem;padding-top:1.25rem">
+          <div style="font-size:.78rem;font-weight:600;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:1rem">SEO &amp; Social Sharing</div>
+
+          <div style="margin-bottom:1.25rem">
+            <div class="label">Social Sharing Image <span style="color:var(--muted);font-weight:400">(og:image — auto-resized to 1200×630)</span></div>
+            <div id="seo-image-preview" style="display:none;margin-bottom:.6rem">
+              <img id="seo-image-thumb" src="" alt="Social image preview" style="width:100%;max-width:360px;border-radius:8px;border:1px solid var(--border);aspect-ratio:1200/630;object-fit:cover" />
+              <button onclick="clearSeoImage()" style="display:block;margin-top:.35rem;font-size:.75rem;color:var(--muted);background:none;border:none;cursor:pointer;padding:0">✕ Remove</button>
+            </div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+              <label class="btn btn-ghost" style="font-size:.8rem;cursor:pointer">
+                Upload image
+                <input type="file" id="seo-image-file" accept="image/*" style="display:none" onchange="uploadSeoImage(this)">
+              </label>
+              <span style="display:flex;align-items:center;font-size:.78rem;color:var(--muted)">or</span>
+              <input type="text" id="seo-image-url" placeholder="https://yourapp.com/og.jpg" style="flex:1;min-width:180px;font-size:.82rem" />
+            </div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:.35rem">Used for link previews on Twitter/X, Facebook, iMessage, Slack, etc.</div>
+          </div>
+
+          <div>
+            <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer">
+              <input type="checkbox" id="seo-indexable" checked style="width:16px;height:16px;cursor:pointer" />
+              <span style="font-size:.85rem">Allow search engines to index this page</span>
+            </label>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;margin-left:22px">Unchecked adds <code>noindex,nofollow</code> to the page.</div>
           </div>
         </div>
 
@@ -1953,6 +1983,17 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
     var ytRaw = p.pwaYoutubeUrl || '';
     var ytMatch = ytRaw.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
     document.getElementById('install-youtube-url').value = ytMatch ? ytMatch[1] : ytRaw;
+    // SEO fields
+    var seoImg = p.seoImage || '';
+    if (seoImg) {
+      document.getElementById('seo-image-thumb').src = seoImg.startsWith('data:') ? (BASE + '/pwa/seo-image/' + p.id) : seoImg;
+      document.getElementById('seo-image-preview').style.display = '';
+      document.getElementById('seo-image-url').value = seoImg.startsWith('data:') ? '' : seoImg;
+    } else {
+      document.getElementById('seo-image-preview').style.display = 'none';
+      document.getElementById('seo-image-url').value = '';
+    }
+    document.getElementById('seo-indexable').checked = p.seoIndexable !== 'false';
     document.getElementById('install-config-card').style.display = 'block';
 
     document.getElementById('install-screenshots-card').style.display = 'block';
@@ -1973,6 +2014,8 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
       pwaDescription: document.getElementById('install-description').value.trim() || null,
       pwaYoutubeUrl:  (function(){ var id = document.getElementById('install-youtube-url').value.trim(); return id ? 'https://www.youtube.com/embed/' + id : null; })(),
       installSlug:    slugVal || null,
+      seoImage:       document.getElementById('seo-image-url').value.trim() || null,
+      seoIndexable:   document.getElementById('seo-indexable').checked ? 'true' : 'false',
     };
 
     var res = await fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {
@@ -2026,6 +2069,50 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
         (s.label ? '<span style="font-size:.65rem;color:var(--text-dim)">' + s.label + '</span>' : '') +
       '</div>';
     }).join('');
+  }
+
+  async function uploadSeoImage(input) {
+    var sel = document.getElementById('install-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt || !input.files[0]) return;
+    var status = document.getElementById('install-save-status');
+    status.textContent = 'Uploading…';
+    var formData = new FormData();
+    formData.append('image', input.files[0]);
+    var res = await fetch(BASE + '/admin/projects/' + opt.value + '/seo-image', {
+      method: 'POST',
+      headers: { 'x-admin-key': ADMIN_KEY },
+      body: formData,
+    });
+    if (!res.ok) { status.textContent = 'Upload failed'; return; }
+    // Show preview using the serve route
+    var p = projects.find(function(x) { return x.id === opt.value; });
+    var previewUrl = BASE + '/pwa/seo-image/' + opt.value + '?t=' + Date.now();
+    document.getElementById('seo-image-thumb').src = previewUrl;
+    document.getElementById('seo-image-preview').style.display = '';
+    document.getElementById('seo-image-url').value = '';
+    // Update local project cache so seoImage flag is set
+    if (p) p.seoImage = 'data:uploaded';
+    status.textContent = 'Image uploaded!';
+    setTimeout(function() { status.textContent = ''; }, 2500);
+    input.value = '';
+  }
+
+  function clearSeoImage() {
+    document.getElementById('seo-image-preview').style.display = 'none';
+    document.getElementById('seo-image-thumb').src = '';
+    document.getElementById('seo-image-url').value = '';
+    var sel = document.getElementById('install-project');
+    var opt = sel && sel.options[sel.selectedIndex];
+    if (!opt) return;
+    var p = projects.find(function(x) { return x.id === opt.value; });
+    if (p) p.seoImage = null;
+    // Persist null to server
+    fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ seoImage: null }),
+    });
   }
 
   async function uploadInstallScreenshot(input) {

@@ -11,7 +11,7 @@ import {
   createScheduledNotification, getScheduledNotificationsForProject, cancelScheduledNotification,
 } from "./storage.js";
 import { sendToSubscription } from "./push.js";
-import { processLogo, processScreenshot } from "./image.js";
+import { processLogo, processScreenshot, processOgImage } from "./image.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -79,6 +79,8 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
     pwaDescription: z.string().nullable().optional(),
     pwaYoutubeUrl: z.string().url().nullable().optional(),
     installSlug: z.string().regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers and hyphens").nullable().optional(),
+    seoImage: z.string().nullable().optional(),
+    seoIndexable: z.enum(["true", "false"]).nullable().optional(),
   });
   try {
     const pwa = schema.parse(req.body);
@@ -186,6 +188,34 @@ router.get("/admin/projects/:id/screenshots", requireAdminKey, async (req, res) 
 router.delete("/admin/screenshots/:id", requireAdminKey, async (req, res) => {
   await deleteScreenshot(req.params.id);
   res.json({ ok: true });
+});
+
+// Upload OG / social sharing image — resized to 1200×630
+router.post("/admin/projects/:id/seo-image", requireAdminKey, upload.single("image"), async (req: any, res) => {
+  if (!req.file) { res.status(400).json({ error: "No file uploaded" }); return; }
+  try {
+    const dataUrl = await processOgImage(req.file.buffer);
+    const project = await updateProjectPwa(req.params.id, { seoImage: dataUrl });
+    res.json({ ok: true, seoImage: `seo-image-set` });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Serve OG image publicly (needed for social crawlers — data URLs don't work in og:image)
+router.get("/pwa/seo-image/:id", async (req, res) => {
+  const project = await getProjectById(req.params.id);
+  const img = (project as any)?.seoImage as string | undefined;
+  if (!img) { res.status(404).end(); return; }
+  if (img.startsWith("data:")) {
+    const [meta, b64] = img.split(",");
+    const mime = meta.split(";")[0].split(":")[1];
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(Buffer.from(b64, "base64"));
+  } else {
+    res.redirect(302, img);
+  }
 });
 
 // ── Hosted widget script (include with one <script> tag) ─────────────────────
@@ -808,20 +838,42 @@ router.get("/install/:slugOrId", async (req, res) => {
   const iosTipColor  = isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.55)";
   const dividerColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
 
+  const seoImage     = (project as any).seoImage as string | undefined;
+  const seoIndexable = (project as any).seoIndexable !== "false";
+  const canonicalUrl = (project as any).pwaUrl || "";
+  // Resolve og:image — prefer dedicated social image, fallback to app icon
+  const ogImage = seoImage
+    ? (seoImage.startsWith("data:") ? `${base}/pwa/seo-image/${project.id}` : seoImage)
+    : (icon || "");
+  const metaDesc = appDesc || `Install ${appName} on your device`;
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Install ${appName}</title>
+  ${!seoIndexable ? `<meta name="robots" content="noindex,nofollow"/>` : `<meta name="robots" content="index,follow"/>`}
+  ${canonicalUrl ? `<link rel="canonical" href="${canonicalUrl}install"/>` : ""}
   <link rel="manifest" href="${installManifestUrl}">
   <meta name="theme-color" content="${bgColor}">
+  <meta name="description" content="${metaDesc}"/>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="${appName}">
   ${icon ? `<link rel="apple-touch-icon" href="${icon}">` : ""}
-  <meta property="og:title" content="${appName}"/>
-  <meta property="og:description" content="${appDesc || `Install ${appName} on your device`}"/>
-  ${icon ? `<meta property="og:image" content="${icon}"/>` : ""}
+  <!-- Open Graph -->
+  <meta property="og:type" content="website"/>
+  <meta property="og:title" content="Install ${appName}"/>
+  <meta property="og:description" content="${metaDesc}"/>
+  ${ogImage ? `<meta property="og:image" content="${ogImage}"/>
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>` : ""}
+  ${canonicalUrl ? `<meta property="og:url" content="${canonicalUrl}install"/>` : ""}
+  <!-- Twitter / X card -->
+  <meta name="twitter:card" content="${ogImage ? "summary_large_image" : "summary"}"/>
+  <meta name="twitter:title" content="Install ${appName}"/>
+  <meta name="twitter:description" content="${metaDesc}"/>
+  ${ogImage ? `<meta name="twitter:image" content="${ogImage}"/>` : ""}
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%}

@@ -57,6 +57,19 @@ function isSvgBuffer(buffer: Buffer): boolean {
   return head.startsWith("<svg") || head.startsWith("<?xml") || head.includes("<svg");
 }
 
+const OG_W = 1200;
+const OG_H = 630;
+
+/** Resize to 1200×630 JPEG for og:image / social sharing cards. */
+export async function processOgImage(buffer: Buffer): Promise<string> {
+  validateImageSize(buffer.length);
+  const resized = await sharp(buffer)
+    .resize(OG_W, OG_H, { fit: "cover", position: "centre" })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+  return `data:image/jpeg;base64,${resized.toString("base64")}`;
+}
+
 const SCREENSHOT_W = 900;
 const SCREENSHOT_H = 1600;
 
