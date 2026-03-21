@@ -1021,8 +1021,11 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
         </div>
 
         <div style="margin-bottom:1.25rem">
-          <div class="label">YouTube URL <span style="color:var(--muted);font-weight:400">(optional — embeds a preview video)</span></div>
-          <input type="text" id="install-youtube-url" placeholder="https://www.youtube.com/watch?v=…" style="width:100%" />
+          <div class="label">YouTube Video ID <span style="color:var(--muted);font-weight:400">(optional — embeds a preview video)</span></div>
+          <div style="display:flex;align-items:stretch">
+            <span style="display:flex;align-items:center;padding:0 .6rem;background:var(--surface2);border:1px solid var(--border);border-right:none;border-radius:var(--radius) 0 0 var(--radius);font-size:.78rem;color:var(--muted);white-space:nowrap;user-select:none">youtube.com/embed/</span>
+            <input type="text" id="install-youtube-url" placeholder="dQw4w9WgXcQ" style="border-radius:0 var(--radius) var(--radius) 0;flex:1;min-width:0" />
+          </div>
         </div>
 
         <div style="display:flex;gap:.5rem;align-items:center">
@@ -1947,7 +1950,9 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
 
     document.getElementById('install-slug').value        = p.installSlug    || '';
     document.getElementById('install-description').value = p.pwaDescription || '';
-    document.getElementById('install-youtube-url').value = p.pwaYoutubeUrl  || '';
+    var ytRaw = p.pwaYoutubeUrl || '';
+    var ytMatch = ytRaw.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
+    document.getElementById('install-youtube-url').value = ytMatch ? ytMatch[1] : ytRaw;
     document.getElementById('install-config-card').style.display = 'block';
 
     document.getElementById('install-screenshots-card').style.display = 'block';
@@ -1966,7 +1971,7 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
     var slugVal = document.getElementById('install-slug').value.trim().toLowerCase();
     var body = {
       pwaDescription: document.getElementById('install-description').value.trim() || null,
-      pwaYoutubeUrl:  document.getElementById('install-youtube-url').value.trim() || null,
+      pwaYoutubeUrl:  (function(){ var id = document.getElementById('install-youtube-url').value.trim(); return id ? 'https://www.youtube.com/embed/' + id : null; })(),
       installSlug:    slugVal || null,
     };
 

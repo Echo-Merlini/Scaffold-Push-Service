@@ -783,10 +783,10 @@ router.get("/install/:slugOrId", async (req, res) => {
     `<img src="${screenshotUrls[i]}" class="screenshot" alt="${s.label || appName} screenshot" onclick="lbOpen(${i})" />`
   ).join("");
 
-  // Convert YouTube watch URL to embed URL
+  // Accept watch URLs, youtu.be short links, or embed URLs — normalise to embed
   let youtubeEmbed = "";
   if (youtubeUrl) {
-    const ytMatch = youtubeUrl.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    const ytMatch = youtubeUrl.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
     if (ytMatch) {
       youtubeEmbed = `https://www.youtube.com/embed/${ytMatch[1]}`;
     }
