@@ -1191,8 +1191,10 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
           var platform = detectPlatform(s.userAgent);
           var platformBadge = '<span style="display:inline-block;padding:.1rem .45rem;border-radius:20px;font-size:.68rem;font-weight:600;background:' + (PLATFORM_COLORS[platform]||'#374151') + '22;color:' + (PLATFORM_COLORS[platform]||'#6b7280') + ';margin-right:.4rem">' + platform + '</span>';
           var date = s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—';
-          var userIdBadge = s.userId
-            ? '<code style="background:#065f4622;color:#34d399;padding:.1rem .35rem;border-radius:4px">' + s.userId + '</code>'
+          var userLabel = s.userName || s.userId || null;
+          var userIdBadge = userLabel
+            ? '<span style="font-size:.82rem;font-weight:500;color:var(--text)">' + userLabel + '</span>'
+              + (s.userId && s.userName ? ' <code style="font-size:.7rem;color:var(--muted)">id:' + s.userId + '</code>' : '')
             : '<span style="color:var(--muted);font-size:.75rem">—</span>';
           return '<tr>' +
             '<td style="color:var(--text)">' + platformBadge + ua + '</td>' +
@@ -1278,8 +1280,10 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
         var platformBadge = '<span style="display:inline-flex;align-items:center;padding:.15rem .5rem;border-radius:20px;font-size:.7rem;font-weight:600;background:'+color+'22;color:'+color+'">'+platform+'</span>';
         var browser = parseUA(s.userAgent);
         var date = s.createdAt ? new Date(s.createdAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '—';
-        var userIdCell = s.userId
-          ? '<code style="background:#065f4622;color:#34d399;padding:.15rem .4rem;border-radius:5px;font-size:.8rem">'+s.userId+'</code>'
+        var userLabel = s.userName || s.userId || null;
+        var userIdCell = userLabel
+          ? '<span style="font-size:.82rem;font-weight:500;color:var(--text)">'+userLabel+'</span>'
+            + (s.userId && s.userName ? '<br><code style="font-size:.7rem;color:var(--muted)">id:'+s.userId+'</code>' : '')
           : '<span style="color:var(--muted);font-size:.75rem">—</span>';
         var projectBadge = '<span style="font-size:.75rem;color:var(--text-dim)">'+s.projectName+'</span>';
         var endpoint = '<code style="font-size:.72rem;color:var(--muted)">…'+s.endpointHint+'</code>';

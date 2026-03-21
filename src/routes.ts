@@ -153,6 +153,7 @@ router.get("/admin/projects/:id/subscribers", requireAdminKey, async (req, res) 
     endpointHint: s.endpoint.slice(-12),   // last 12 chars to identify without exposing full URL
     userAgent: s.userAgent || null,
     userId: s.userId || null,
+    userName: s.userName || null,
     createdAt: s.createdAt,
   })));
 });
@@ -1196,13 +1197,14 @@ const subscribeSchema = z.object({
     auth: z.string(),
   }),
   userId: z.string().optional(),
+  userName: z.string().optional(),
 });
 
 router.post("/subscribe", requireApiKey, async (req, res) => {
   const project = (req as any).project;
-  const { endpoint, keys, userId } = subscribeSchema.parse(req.body);
+  const { endpoint, keys, userId, userName } = subscribeSchema.parse(req.body);
 
-  console.log(`[subscribe] projectId=${project.id} userId=${userId ?? "NONE"} endpoint=${endpoint.slice(0, 60)}...`);
+  console.log(`[subscribe] projectId=${project.id} userId=${userId ?? "NONE"} userName=${userName ?? "NONE"} endpoint=${endpoint.slice(0, 60)}...`);
 
   const sub = await upsertSubscription({
     projectId: project.id,
@@ -1211,6 +1213,7 @@ router.post("/subscribe", requireApiKey, async (req, res) => {
     auth: keys.auth,
     userAgent: req.headers["user-agent"],
     userId,
+    userName,
   });
 
   res.status(201).json({ id: sub.id });
@@ -1233,12 +1236,14 @@ router.post("/resubscribe", requireApiKey, async (req, res) => {
   const project = (req as any).project;
   const old = oldEndpoint ? await getSubscriptionByEndpoint(oldEndpoint) : null;
   const userId = old?.userId ?? undefined;
+  const userName = old?.userName ?? undefined;
 
   await upsertSubscription({
     projectId: project.id,
     endpoint,
     p256dh: keys.p256dh,
     auth: keys.auth,
+    userName,
     userAgent: req.headers["user-agent"],
     userId,
   });

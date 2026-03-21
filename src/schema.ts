@@ -46,6 +46,7 @@ export const subscriptions = pgTable("subscriptions", {
   auth: text("auth").notNull(),          // browser auth secret
   userAgent: text("user_agent"),
   userId: text("user_id"),              // optional — links subscription to an app user ID
+  userName: text("user_name"),          // optional — display name / username for the Users tab
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
