@@ -108,6 +108,13 @@ app.use((_req, res, next) => {
 app.use(express.static(join(__dirname, "../public")));
 app.use("/", router);
 
+// Global error handler — catches any unhandled error thrown in route handlers
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error("[unhandled error]", err);
+  const status = err?.status ?? err?.statusCode ?? 500;
+  res.status(status).json({ error: err?.message ?? "Internal server error" });
+});
+
 const port = Number(process.env.PORT) || 3000;
 app.listen(port, () => {
   console.log(`Push service running on port ${port}`);

@@ -80,9 +80,21 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
     pwaYoutubeUrl: z.string().url().nullable().optional(),
     installSlug: z.string().regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers and hyphens").nullable().optional(),
   });
-  const pwa = schema.parse(req.body);
-  const project = await updateProjectPwa(req.params.id, pwa);
-  res.json(project);
+  try {
+    const pwa = schema.parse(req.body);
+    const project = await updateProjectPwa(req.params.id, pwa);
+    res.json(project);
+  } catch (err: any) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors[0]?.message ?? "Invalid input" });
+    } else if (err?.code === "23505") {
+      // PostgreSQL unique constraint violation (e.g. duplicate install slug)
+      res.status(409).json({ error: "That install slug is already taken by another project." });
+    } else {
+      console.error("PATCH /pwa error:", err);
+      res.status(500).json({ error: err?.message ?? "Internal server error" });
+    }
+  }
 });
 
 // Save widget enable/disable settings
