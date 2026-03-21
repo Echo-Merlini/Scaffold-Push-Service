@@ -711,7 +711,7 @@ async function ensurePushSubscription(userId) {
 
       <div class="card" style="margin-bottom:1.25rem">
         <div class="card-header"><span class="card-title">POST /subscribe</span></div>
-        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Registers or updates a push subscription. Requires <code>x-api-key</code> header. If the endpoint already exists it is updated (upsert). Pass <code>userId</code> to link the subscription to a user in your system.</p>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Registers or updates a push subscription. Requires <code>x-api-key</code> header. If the endpoint already exists it is updated (upsert). Pass <code>userId</code> to link the subscription to a user in your system, and <code>userName</code> to show a human-readable name in the admin Users tab.</p>
         <pre>// Headers
 x-api-key: YOUR_PROJECT_API_KEY
 Content-Type: application/json
@@ -723,11 +723,12 @@ Content-Type: application/json
     "p256dh": "...",
     "auth": "..."
   },
-  "userId": "42"          // optional — your internal user ID
+  "userId":   "42",       // optional — your internal user ID
+  "userName": "alice"     // optional — display name shown in admin Users tab
 }
 
 // Response 201
-{ "id": 7, "endpoint": "https://fcm...", "userId": "42" }</pre>
+{ "id": 7, "endpoint": "https://fcm...", "userId": "42", "userName": "alice" }</pre>
       </div>
 
       <div class="card" style="margin-bottom:1.25rem">
@@ -773,7 +774,7 @@ Content-Type: application/json
 
       <div class="card" style="margin-bottom:1.25rem">
         <div class="card-header"><span class="card-title">POST /resubscribe</span></div>
-        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Called by your app server's <code>/api/push/resubscribe</code> proxy when the browser's <code>pushsubscriptionchange</code> SW event fires. Swaps the old endpoint for the new one and preserves the <code>userId</code> link. Requires <code>x-api-key</code> header. Do <strong>not</strong> call this endpoint directly from the browser — proxy it through your app server.</p>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Called by your app server's <code>/api/push/resubscribe</code> proxy when the browser's <code>pushsubscriptionchange</code> SW event fires. Swaps the old endpoint for the new one and preserves both the <code>userId</code> and <code>userName</code> links. Requires <code>x-api-key</code> header. Do <strong>not</strong> call this endpoint directly from the browser — proxy it through your app server.</p>
         <pre>// Headers
 x-api-key: YOUR_PROJECT_API_KEY
 Content-Type: application/json
@@ -785,7 +786,7 @@ Content-Type: application/json
     "p256dh": "...",
     "auth":   "..."
   },
-  "oldEndpoint": "https://fcm.googleapis.com/..."   // previous endpoint (used to look up userId)
+  "oldEndpoint": "https://fcm.googleapis.com/..."   // previous endpoint (used to look up userId + userName)
 }
 
 // Response
@@ -798,14 +799,15 @@ Content-Type: application/json
         <pre>// React / any framework — call after login or in useEffect on user change
 window.scaffoldPush?.identify(user.id);
 
-// Express server-side — inject userId via session when browser calls /subscribe
+// Express server-side — inject userId + userName via session when browser calls /subscribe
 // (alternative to client-side identify when you proxy the subscribe call)
 app.post("/api/push/subscribe", requireAuth, async (req, res) => {
-  const userId = String(req.user.id);   // from session
+  const userId   = String(req.user.id);
+  const userName = req.user.username || req.user.email;  // shown in admin Users tab
   await fetch(`${PUSH_SERVICE_URL}/subscribe`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": PUSH_SERVICE_API_KEY },
-    body: JSON.stringify({ ...req.body, userId }),
+    body: JSON.stringify({ ...req.body, userId, userName }),
   });
 });</pre>
       </div>
