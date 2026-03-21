@@ -36,6 +36,7 @@ export async function updateProjectPwa(id: string, pwa: {
   installSlug?: string | null;
   seoImage?: string | null;
   seoIndexable?: string | null;
+  storeLinks?: string | null;
 }) {
   const [updated] = await db
     .update(projects)

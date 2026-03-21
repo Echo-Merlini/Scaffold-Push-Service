@@ -81,6 +81,7 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
     installSlug: z.string().regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers and hyphens").nullable().optional(),
     seoImage: z.string().nullable().optional(),
     seoIndexable: z.enum(["true", "false"]).nullable().optional(),
+    storeLinks: z.string().nullable().optional(),
   });
   try {
     const pwa = schema.parse(req.body);
@@ -838,6 +839,11 @@ router.get("/install/:slugOrId", async (req, res) => {
   const iosTipColor  = isDark ? "rgba(255,255,255,0.65)" : "rgba(0,0,0,0.55)";
   const dividerColor = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)";
 
+  // Store links
+  let storeLinks: Record<string, {url:string;enabled:boolean}> = {};
+  try { storeLinks = JSON.parse((project as any).storeLinks || "{}"); } catch {}
+  const storeLinksJson = JSON.stringify(storeLinks);
+
   const seoImage     = (project as any).seoImage as string | undefined;
   const seoIndexable = (project as any).seoIndexable !== "false";
   const canonicalUrl = (project as any).pwaUrl || "";
@@ -965,6 +971,23 @@ router.get("/install/:slugOrId", async (req, res) => {
     /* Divider */
     .divider{width:40px;height:1px;background:${dividerColor};margin:.25rem auto}
 
+    /* Store buttons */
+    .store-section{display:flex;flex-direction:column;align-items:center;gap:.75rem;padding:1.25rem 0;width:100%}
+    .store-section-label{font-size:.72rem;color:${mutedColor};text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:-.15rem}
+    .store-primary{display:flex;gap:.65rem;flex-wrap:wrap;justify-content:center}
+    .store-secondary{display:flex;gap:.5rem;flex-wrap:wrap;justify-content:center;margin-top:.25rem}
+    .store-btn{display:inline-flex;align-items:center;gap:.7rem;padding:.7rem 1.1rem;border-radius:12px;text-decoration:none;font-family:system-ui,-apple-system,sans-serif;font-size:.82rem;line-height:1.25;transition:opacity .15s;flex-shrink:0}
+    .store-btn:hover{opacity:.82}
+    .store-btn small{display:block;font-size:.65rem;font-weight:400;opacity:.8}
+    .store-btn strong{display:block;font-size:.88rem;font-weight:700}
+    .store-btn-apple{background:#000;color:#fff}
+    .store-btn-google{background:#000;color:#fff}
+    .store-btn-chrome{background:#1a73e8;color:#fff}
+    .store-btn-windows{background:#0078d4;color:#fff}
+    .store-btn-sm{padding:.45rem .85rem;border-radius:9px;font-size:.75rem;gap:.5rem}
+    .store-divider{display:flex;align-items:center;gap:.75rem;width:100%;max-width:320px;color:${mutedColor};font-size:.75rem}
+    .store-divider::before,.store-divider::after{content:'';flex:1;height:1px;background:${dividerColor}}
+
     /* iOS modal overlay */
     .ios-overlay{
       display:none;position:fixed;inset:0;z-index:9999;
@@ -1016,6 +1039,8 @@ router.get("/install/:slugOrId", async (req, res) => {
       <div class="media-scroll" id="media-scroll">${youtubeEmbed ? `<iframe class="media-yt" src="${youtubeEmbed}" allowfullscreen loading="lazy" title="${appName} preview"></iframe>` : ""}${screenshotHtml}</div>
       <button class="carousel-btn right" id="carousel-next" onclick="carouselScroll(1)" aria-label="Next">&#8250;</button>
     </div>` : ""}
+
+    <div id="store-section" style="display:none" class="store-section"></div>
 
     ${appDesc ? `<p class="desc">${appDesc}</p>` : ""}
 
@@ -1084,6 +1109,68 @@ router.get("/install/:slugOrId", async (req, res) => {
   </div>
 
   <script>
+    // ── Store link redirects ──────────────────────────────────────────────────
+    var STORE_LINKS = ${storeLinksJson};
+
+    var STORE_META = {
+      appStore:    { label: 'Download on the', name: 'App Store',       cls: 'store-btn-apple',   icon: '<svg width="22" height="22" viewBox="0 0 814 1000" fill="currentColor"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.4-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-37.8-155.5-127.4C46.3 726.9 0 611.2 0 499.9c0-157.9 103.4-241.5 204.2-241.5 51.1 0 92.4 33.9 124.4 33.9 30.9 0 79.5-35.9 139.1-35.9 17.5 0 109.8 1.7 167.3 73.6zm-184.7-157.2c30.3-36.2 52-86.9 52-137.5 0-7 0-13.9-1.2-19.5-49.5 1.9-108.6 33-143.7 74.9-28.1 32.9-54.1 83.7-54.1 135.2 0 7.6 1.2 15.1 1.7 17.5 3.4.6 8.9 1.4 14.4 1.4 44.4 0 98.9-29.6 130.9-71.9z"/></svg>' },
+      playStore:   { label: 'Get it on',       name: 'Google Play',     cls: 'store-btn-google',  icon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3.18 23.86c.38.21.82.22 1.21.04L16.6 12 12.29 7.7 3.18 23.86zm15.8-13.2L15.8 9.1l-3.51 2.9 3.51 2.9 3.22-1.57c.91-.44.91-1.73-.04-2.57zM3.07.14C2.7.36 2.44.77 2.44 1.27v21.46c0 .5.26.91.63 1.13l.12.06L13.8 12 3.07.14zm9.22 11.86L3.18.14l.01-.01c-.01 0-.01.01-.01.01L13.44 12 12.29 12z"/></svg>' },
+      chromeStore: { label: 'Available in the', name: 'Chrome Web Store', cls: 'store-btn-chrome',  icon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C8.21 0 4.831 1.757 2.632 4.501l3.953 6.848A5.454 5.454 0 0 1 12 6.545h10.691A12 12 0 0 0 12 0zM1.931 5.47A11.943 11.943 0 0 0 0 12c0 6.012 4.42 10.991 10.189 11.864l3.953-6.847a5.45 5.45 0 0 1-6.865-2.29zm13.342 2.166a5.446 5.446 0 0 1 1.45 7.09l.002.001h-.002l-5.344 9.257c.206.01.412.015.621.015 6.627 0 12-5.373 12-12 0-1.54-.29-3.011-.818-4.363zM12 10.545a1.455 1.455 0 1 0 0 2.91 1.455 1.455 0 0 0 0-2.91z"/></svg>' },
+      windowsStore:{ label: 'Get it from',     name: 'Microsoft Store', cls: 'store-btn-windows', icon: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.55H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.949"/></svg>' },
+    };
+
+    function detectStorePlatform() {
+      var ua = navigator.userAgent;
+      if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'appStore';
+      if (/Android/.test(ua)) return 'playStore';
+      if (/CrOS/.test(ua)) return 'chromeStore';
+      if (/Win/.test(ua)) return 'windowsStore';
+      return null;
+    }
+
+    function storeBtn(key, sizeCls) {
+      var link = STORE_LINKS[key];
+      if (!link || !link.enabled || !link.url) return '';
+      var m = STORE_META[key];
+      return '<a href="' + link.url + '" target="_blank" rel="noopener" class="store-btn ' + m.cls + (sizeCls ? ' ' + sizeCls : '') + '">'
+        + m.icon
+        + '<span><small>' + m.label + '</small><strong>' + m.name + '</strong></span></a>';
+    }
+
+    function renderStoreSection() {
+      var platform = detectStorePlatform();
+      var primaryKey = platform && STORE_LINKS[platform]?.enabled && STORE_LINKS[platform]?.url ? platform : null;
+      var otherKeys = Object.keys(STORE_META).filter(function(k) {
+        return k !== primaryKey && STORE_LINKS[k] && STORE_LINKS[k].enabled && STORE_LINKS[k].url;
+      });
+      var hasAny = primaryKey || otherKeys.length;
+      if (!hasAny) return;
+
+      var el = document.getElementById('store-section');
+      var html = '';
+
+      if (primaryKey) {
+        html += '<div class="store-primary">' + storeBtn(primaryKey, '') + '</div>';
+        if (otherKeys.length) {
+          html += '<div class="store-divider">also available on</div>';
+          html += '<div class="store-secondary">' + otherKeys.map(function(k){ return storeBtn(k, 'store-btn-sm'); }).join('') + '</div>';
+        }
+      } else if (otherKeys.length) {
+        html += '<span class="store-section-label">Also available on</span>';
+        html += '<div class="store-primary">' + otherKeys.map(function(k){ return storeBtn(k, ''); }).join('') + '</div>';
+      }
+
+      if (primaryKey || otherKeys.length) {
+        html += '<div class="store-divider">or install as PWA below</div>';
+      }
+
+      el.innerHTML = html;
+      el.style.display = '';
+    }
+
+    renderStoreSection();
+
+    // ── Lightbox ─────────────────────────────────────────────────────────────
     var lbUrls = ${JSON.stringify(screenshotUrls)};
     var lbIdx  = 0;
     var lbOverlay = null;

@@ -50,7 +50,8 @@ async function runMigrations() {
   await db.execute(sql`
     ALTER TABLE projects
       ADD COLUMN IF NOT EXISTS seo_image TEXT,
-      ADD COLUMN IF NOT EXISTS seo_indexable TEXT DEFAULT 'true'
+      ADD COLUMN IF NOT EXISTS seo_indexable TEXT DEFAULT 'true',
+      ADD COLUMN IF NOT EXISTS store_links TEXT DEFAULT '{}'
   `);
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS scheduled_notifications (

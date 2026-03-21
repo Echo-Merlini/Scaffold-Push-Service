@@ -1078,6 +1078,14 @@ POST /admin/projects/:id/seo-image   // x-admin-key header, multipart/form-data 
           </div>
         </div>
 
+        <!-- Native App Stores -->
+        <div style="border-top:1px solid var(--border);margin:1.25rem 0 1.25rem;padding-top:1.25rem">
+          <div style="font-size:.78rem;font-weight:600;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.9rem">Native App Stores</div>
+          <p style="font-size:.78rem;color:var(--muted);margin-bottom:1rem">If your app has a native version, enable the stores below. Visitors are shown the matching store button for their platform first, with other stores listed below it.</p>
+
+          <div id="store-rows" style="display:flex;flex-direction:column;gap:.6rem"></div>
+        </div>
+
         <!-- SEO section -->
         <div style="border-top:1px solid var(--border);margin:1.25rem 0 1.25rem;padding-top:1.25rem">
           <div style="font-size:.78rem;font-weight:600;color:var(--text-dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:1rem">SEO &amp; Social Sharing</div>
@@ -2044,6 +2052,10 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
       document.getElementById('seo-image-url').value = '';
     }
     document.getElementById('seo-indexable').checked = p.seoIndexable !== 'false';
+    // Store links
+    var storeLinks = {};
+    try { storeLinks = JSON.parse(p.storeLinks || '{}'); } catch(e) {}
+    renderStoreRows(storeLinks);
     document.getElementById('install-config-card').style.display = 'block';
 
     document.getElementById('install-screenshots-card').style.display = 'block';
@@ -2066,6 +2078,7 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
       installSlug:    slugVal || null,
       seoImage:       document.getElementById('seo-image-url').value.trim() || null,
       seoIndexable:   document.getElementById('seo-indexable').checked ? 'true' : 'false',
+      storeLinks:     JSON.stringify(collectStoreLinks()),
     };
 
     var res = await fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {
@@ -2119,6 +2132,53 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
         (s.label ? '<span style="font-size:.65rem;color:var(--text-dim)">' + s.label + '</span>' : '') +
       '</div>';
     }).join('');
+  }
+
+  var STORE_DEFS = [
+    { key: 'appStore',     label: 'App Store',          placeholder: 'https://apps.apple.com/app/your-app/id…' },
+    { key: 'playStore',    label: 'Google Play',         placeholder: 'https://play.google.com/store/apps/details?id=…' },
+    { key: 'chromeStore',  label: 'Chrome Web Store',    placeholder: 'https://chrome.google.com/webstore/detail/…' },
+    { key: 'windowsStore', label: 'Microsoft Store',     placeholder: 'https://apps.microsoft.com/store/detail/…' },
+  ];
+
+  function renderStoreRows(storeLinks) {
+    var container = document.getElementById('store-rows');
+    container.innerHTML = STORE_DEFS.map(function(s) {
+      var link = storeLinks[s.key] || { url: '', enabled: false };
+      var checked = link.enabled ? 'checked' : '';
+      var url = link.url || '';
+      return '<div style="display:flex;align-items:center;gap:.6rem">'
+        + '<label style="display:flex;align-items:center;gap:.5rem;min-width:0;flex:1;cursor:pointer">'
+        + '<input type="checkbox" data-store="' + s.key + '" class="store-toggle" ' + checked + ' style="width:16px;height:16px;flex-shrink:0;cursor:pointer" onchange="updateStoreRow(this)">'
+        + '<span style="font-size:.83rem;white-space:nowrap;min-width:130px">' + s.label + '</span>'
+        + '<input type="text" data-store-url="' + s.key + '" value="' + url + '" placeholder="' + s.placeholder + '" style="flex:1;font-size:.78rem;' + (link.enabled ? '' : 'opacity:.4;pointer-events:none') + '">'
+        + '</label>'
+        + '</div>';
+    }).join('');
+  }
+
+  function updateStoreRow(checkbox) {
+    var key = checkbox.dataset.store;
+    var urlInput = document.querySelector('[data-store-url="' + key + '"]');
+    if (urlInput) {
+      urlInput.style.opacity = checkbox.checked ? '1' : '.4';
+      urlInput.style.pointerEvents = checkbox.checked ? '' : 'none';
+    }
+  }
+
+  function collectStoreLinks() {
+    var result = {};
+    STORE_DEFS.forEach(function(s) {
+      var toggle = document.querySelector('[data-store="' + s.key + '"]');
+      var urlInput = document.querySelector('[data-store-url="' + s.key + '"]');
+      if (toggle || urlInput) {
+        result[s.key] = {
+          enabled: toggle ? toggle.checked : false,
+          url: urlInput ? urlInput.value.trim() : '',
+        };
+      }
+    });
+    return result;
   }
 
   async function uploadSeoImage(input) {

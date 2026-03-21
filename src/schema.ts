@@ -22,6 +22,7 @@ export const projects = pgTable("projects", {
   installSlug: text("install_slug").unique(), // custom URL slug e.g. "goblinarinos"
   seoImage: text("seo_image"),               // social sharing OG image — data URL or external URL
   seoIndexable: text("seo_indexable").default("true"), // "true" | "false"
+  storeLinks: text("store_links").default("{}"), // JSON: {appStore,playStore,chromeStore,windowsStore} each {url,enabled}
   widgetsConfig: text("widgets_config").default("{}"), // JSON: { bell, banner, install }
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
