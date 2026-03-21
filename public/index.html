@@ -1229,6 +1229,7 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
   async function loadUsers() {
     // Populate project filter if needed
     var sel = document.getElementById('users-project-filter');
+    sel.value = ''; // always reset to "All projects" on navigation
     if (sel.options.length === 1) {
       projects.forEach(function(p) {
         var opt = document.createElement('option');
