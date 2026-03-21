@@ -318,12 +318,12 @@ router.get("/widgets.js", async (req, res) => {
       btn.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
       panel.style.flexDirection='column';
       panelBody.innerHTML=
-        '<p style="color:#aaa;font-size:12px;margin-bottom:10px;line-height:1.5">To receive push notifications on iOS, open this app from your Home Screen.</p>'+
+        '<p style="color:#aaa;font-size:12px;margin-bottom:10px;line-height:1.5">To receive push notifications on iOS, install this app from <strong style="color:#e5e5e5">Safari</strong> and open it from your Home Screen.</p>'+
         '<ol style="color:#888;font-size:11px;line-height:1.8;padding-left:1.1rem;margin-bottom:10px">'+
-        '<li>Tap the <strong style="color:#aaa">Share</strong> button (&#x2B06; box with arrow) in Safari</li>'+
+        '<li>Open this page in <strong style="color:#aaa">Safari</strong> (not Chrome — Chrome on iOS cannot install PWAs)</li>'+
+        '<li>Tap the <strong style="color:#aaa">Share</strong> button (&#x2B06;) in the Safari toolbar</li>'+
         '<li>Tap <strong style="color:#aaa">Add to Home Screen</strong></li>'+
-        '<li>Open the app from your Home Screen</li>'+
-        '<li>Tap the bell to enable notifications</li>'+
+        '<li>Open the installed app from your Home Screen, then tap the bell</li>'+
         '</ol>'+
         '<p style="color:#555;font-size:11px">Requires iOS 16.4 or later.</p>';
       wrap.append(panel,btn);
@@ -998,14 +998,18 @@ router.get("/install/:slugOrId", async (req, res) => {
       <div class="ios-steps">
         <div class="ios-step">
           <div class="ios-step-num">1</div>
-          <div class="ios-step-text">Tap the <em>Share</em> button <svg style="vertical-align:middle" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> in the browser toolbar</div>
+          <div class="ios-step-text">Open this page in <em>Safari</em> — Chrome on iOS cannot install PWAs</div>
         </div>
         <div class="ios-step">
           <div class="ios-step-num">2</div>
-          <div class="ios-step-text">Scroll down and tap <em>Add to Home Screen</em></div>
+          <div class="ios-step-text">Tap the <em>Share</em> button <svg style="vertical-align:middle" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> in the Safari toolbar</div>
         </div>
         <div class="ios-step">
           <div class="ios-step-num">3</div>
+          <div class="ios-step-text">Scroll down and tap <em>Add to Home Screen</em></div>
+        </div>
+        <div class="ios-step">
+          <div class="ios-step-num">4</div>
           <div class="ios-step-text">Tap <em>Add</em> in the top-right corner</div>
         </div>
       </div>
@@ -1056,12 +1060,24 @@ router.get("/install/:slugOrId", async (req, res) => {
 
     var dp = null;
     var isAppleMobile = (/apple/i.test(navigator.vendor)) && navigator.maxTouchPoints > 0;
-    var isStandalone  = window.matchMedia('(display-mode:standalone)').matches || !!window.navigator.standalone;
+    // On iOS, 'Notification' in window is only true when running as an installed standalone PWA.
+    // display-mode media queries are unreliable on iOS/WKWebView, so use the functional check instead.
+    var isStandalone = isAppleMobile
+      ? ('Notification' in window)
+      : (window.matchMedia('(display-mode:standalone)').matches
+         || window.matchMedia('(display-mode:minimal-ui)').matches
+         || window.matchMedia('(display-mode:fullscreen)').matches
+         || !!window.navigator.standalone);
 
     // Opened from home screen — skip the install page and go straight to the app
     if (isStandalone && '${appUrl}' !== '#') {
       window.location.replace('${appUrl}');
     }
+
+    // On iOS, detect if the user is in Chrome (or any non-Safari browser).
+    // Chrome on iOS cannot install PWAs — "Add to Home Screen" only creates a bookmark.
+    // navigator.vendor is "Google Inc." in Chrome on iOS.
+    var isIosChrome = isAppleMobile && /CriOS/.test(navigator.userAgent);
 
     window.addEventListener('beforeinstallprompt', function(e) {
       e.preventDefault();
@@ -1093,6 +1109,17 @@ router.get("/install/:slugOrId", async (req, res) => {
         openIosModal();
       } else {
         window.open('${appUrl}', '_blank');
+      }
+    }
+
+    // If on iOS Chrome, show a prominent warning inside the iOS modal
+    if (isIosChrome) {
+      var sheet = document.querySelector('.ios-sheet');
+      if (sheet) {
+        var warn = document.createElement('div');
+        warn.style.cssText = 'background:#7c2d12;color:#fef2f2;border-radius:10px;padding:.75rem 1rem;font-size:.82rem;line-height:1.5;margin-bottom:1.1rem;';
+        warn.innerHTML = '<strong>⚠ You are using Chrome on iOS.</strong><br>Chrome cannot install PWAs on iPhone or iPad — tapping "Add to Home Screen" only creates a shortcut. To properly install this app, open this page in <strong>Safari</strong> first.';
+        sheet.insertBefore(warn, sheet.querySelector('.ios-steps'));
       }
     }
 
