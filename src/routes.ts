@@ -306,8 +306,13 @@ router.get("/widgets.js", async (req, res) => {
     btn.onmouseenter=function(){btn.style.transform='scale(1.1)';};
     btn.onmouseleave=function(){btn.style.transform='scale(1)';};
 
-    // Apple mobile in browser — push requires installed PWA, show install instructions
-    if(isAppleMobile && !isStandalone){
+    // Apple mobile NOT running as installed PWA — push requires standalone mode on iOS.
+    // Use navigator.standalone (Safari-only, most reliable) plus display-mode media queries
+    // as fallbacks. Also check display-mode:minimal-ui which some iOS versions use.
+    var isStandaloneRobust=isStandalone
+      ||window.matchMedia('(display-mode:minimal-ui)').matches
+      ||window.matchMedia('(display-mode:fullscreen)').matches;
+    if(isAppleMobile && !isStandaloneRobust){
       btn.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
       panel.style.flexDirection='column';
       panelBody.innerHTML=
@@ -393,8 +398,10 @@ router.get("/widgets.js", async (req, res) => {
   /* ── Install Prompt ── */
   function mountInstall(color){color=color||THEME;
     if(localStorage.getItem(DISMISSED_INSTALL))return;
-    var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
-    var isStandalone=!!window.navigator.standalone||window.matchMedia('(display-mode:standalone)').matches;
+    var isStandalone=!!(window.navigator.standalone)
+      ||window.matchMedia('(display-mode:standalone)').matches
+      ||window.matchMedia('(display-mode:minimal-ui)').matches
+      ||window.matchMedia('(display-mode:fullscreen)').matches;
     if(isStandalone)return;
 
     var card=mkEl('div',null,{display:'none',position:'fixed',bottom:'88px',right:'24px',zIndex:'999998',width:'280px',background:'#111',border:'1px solid #333',borderRadius:'16px',boxShadow:'0 8px 32px rgba(0,0,0,.5)',padding:'16px',fontFamily:'system-ui,-apple-system,sans-serif',color:'#e5e5e5',fontSize:'13px'});
