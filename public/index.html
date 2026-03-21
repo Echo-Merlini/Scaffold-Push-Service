@@ -535,7 +535,7 @@
 
       <div class="card">
         <div class="card-header"><span class="card-title">2. Register service worker</span></div>
-        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Add this file to your project's <code>public/</code> folder:</p>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Add this file to your project's <code>public/</code> folder. The <code>pushsubscriptionchange</code> handler is required — without it, subscriptions silently expire when Chrome rotates its push keys and users stop receiving notifications.</p>
         <pre>// public/sw.js
 // Required for PWA installability (beforeinstallprompt won't fire without a fetch handler)
 self.addEventListener("fetch", (event) => {
@@ -571,6 +571,32 @@ self.addEventListener("notificationclick", (event) => {
       if (clients.openWindow) return clients.openWindow(url);
     })
   );
+});
+
+// IMPORTANT: Chrome periodically rotates push subscriptions.
+// This handler catches the rotation and re-registers the new endpoint,
+// preserving the userId link stored in the push service database.
+// Without this, 410 errors will appear in your notification history.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      const newSub = await self.registration.pushManager.subscribe(
+        event.oldSubscription.options
+      );
+      const subJson = newSub.toJSON();
+      // POST to your app's proxy — NOT directly to the push service
+      // (the push service needs the old endpoint to look up the userId)
+      await fetch("/api/push/resubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: newSub.endpoint,
+          keys: subJson.keys,
+          oldEndpoint: event.oldSubscription?.endpoint,
+        }),
+      });
+    })()
+  );
 });</pre>
       </div>
 
@@ -587,13 +613,50 @@ self.addEventListener("notificationclick", (event) => {
       </div>
 
       <div class="card">
-        <div class="card-header"><span class="card-title">5. Subscribe users manually (alternative to widgets.js)</span></div>
+        <div class="card-header"><span class="card-title">5. Add the resubscribe proxy to your app server</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">The SW's <code>pushsubscriptionchange</code> event fires from a background context where the user session cookie is not available, so it cannot call the push service directly. Add this unauthenticated proxy to your app server. The push service uses the <code>oldEndpoint</code> to look up the existing userId and transfers it to the new subscription automatically.</p>
+        <pre>// Express — add alongside your other /api/push/* routes
+// No requireAuth — called from the SW background context (no session available)
+app.post("/api/push/resubscribe", async (req, res) => {
+  const { endpoint, keys, oldEndpoint } = req.body;
+  try {
+    await fetch(`${process.env.PUSH_SERVICE_URL}/resubscribe`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.PUSH_SERVICE_API_KEY,
+      },
+      body: JSON.stringify({ endpoint, keys, oldEndpoint }),
+    });
+    res.json({ ok: true });
+  } catch {
+    res.status(502).json({ error: "Push service unavailable" });
+  }
+});
+
+// Client-side — call on every page load when the user is logged in.
+// If the browser dropped the subscription silently (SW update, idle eviction),
+// this re-subscribes using the existing notification permission without prompting.
+async function ensurePushSubscription(userId) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (Notification.permission !== "granted") return;
+  const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+  if (!reg) return;
+  const existing = await reg.pushManager.getSubscription();
+  if (existing) return; // still alive — nothing to do
+  // Silently re-subscribe and re-register with the push service
+  await subscribeToPush(userId); // your existing subscribe function
+}</pre>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">6. Subscribe users manually (alternative to widgets.js)</span></div>
         <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">If you are not using <code>widgets.js</code>, handle the subscribe flow yourself. Pass <code>userId</code> in the body to link the subscription from the start.</p>
         <pre id="subscribe-snippet">Loading...</pre>
       </div>
 
       <div class="card">
-        <div class="card-header"><span class="card-title">6. Send notifications from your server</span></div>
+        <div class="card-header"><span class="card-title">7. Send notifications from your server</span></div>
         <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Broadcast to all subscribers or target a specific user with <code>targetUserId</code>.</p>
         <pre id="server-snippet">Loading...</pre>
       </div>
@@ -607,9 +670,11 @@ self.addEventListener("notificationclick", (event) => {
         <ol style="font-size:.82rem;color:var(--text-dim);line-height:1.9;padding-left:1.25rem">
           <li>Create a project in the <strong>Projects</strong> tab — copy your API key</li>
           <li>Set env vars on your app server: <code>PUSH_SERVICE_URL</code>, <code>PUSH_SERVICE_API_KEY</code></li>
-          <li>Add <code>public/sw.js</code> to your app (see Integration Guide step 2)</li>
+          <li>Add <code>public/sw.js</code> to your app — <strong>must include the <code>pushsubscriptionchange</code> handler</strong> (Integration Guide step 2)</li>
           <li>Add <code>widgets.js</code> script tag to your <code>index.html</code> (Integration Guide step 3)</li>
           <li>Call <code>window.scaffoldPush.identify(userId)</code> on login (Integration Guide step 4)</li>
+          <li>Add the unauthenticated <code>POST /api/push/resubscribe</code> proxy to your app server (Integration Guide step 5)</li>
+          <li>Call <code>ensurePushSubscription(userId)</code> on each page load when the user is logged in (Integration Guide step 5)</li>
           <li>Call <code>POST /notify</code> with <code>targetUserId</code> from your server when events occur</li>
         </ol>
       </div>
@@ -685,7 +750,28 @@ Content-Type: application/json
 { "endpoint": "https://fcm.googleapis.com/..." }
 
 // Response
-{ "removed": true }</pre>
+{ "ok": true }</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">POST /resubscribe</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">Called by your app server's <code>/api/push/resubscribe</code> proxy when the browser's <code>pushsubscriptionchange</code> SW event fires. Swaps the old endpoint for the new one and preserves the <code>userId</code> link. Requires <code>x-api-key</code> header. Do <strong>not</strong> call this endpoint directly from the browser — proxy it through your app server.</p>
+        <pre>// Headers
+x-api-key: YOUR_PROJECT_API_KEY
+Content-Type: application/json
+
+// Body
+{
+  "endpoint":    "https://fcm.googleapis.com/...",  // new endpoint from browser
+  "keys": {
+    "p256dh": "...",
+    "auth":   "..."
+  },
+  "oldEndpoint": "https://fcm.googleapis.com/..."   // previous endpoint (used to look up userId)
+}
+
+// Response
+{ "ok": true }</pre>
       </div>
 
       <div class="card" style="margin-bottom:1.25rem">
@@ -921,7 +1007,7 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
           </label>
         </div>
         <p style="font-size:.78rem;color:var(--text-dim);margin-bottom:.75rem">
-          Add up to 6 screenshots. Wide images (landscape) get <code>form_factor: wide</code>; tall images get <code>narrow</code>. Shown on this page and in the Chrome install dialog.
+          Add up to 6 screenshots. All uploads are automatically resized and cropped to <strong>900×1600 px</strong> (portrait) for optimal display in the Android Chrome install dialog. Shown on this page and in the install prompt.
         </p>
         <div id="install-screenshots-gallery" style="display:flex;flex-wrap:wrap;gap:.75rem"></div>
         <div id="install-screenshots-empty" style="font-size:.82rem;color:var(--muted)">No screenshots yet.</div>
