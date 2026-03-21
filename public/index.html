@@ -692,6 +692,26 @@ async function ensurePushSubscription(userId) {
         <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">Broadcast to all subscribers or target a specific user with <code>targetUserId</code>.</p>
         <pre id="server-snippet">Loading...</pre>
       </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">8. iOS: add Apple meta tags to your HTML</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.75rem">iOS Safari ignores <code>manifest.json</code> entirely for home-screen installation. Without these tags, "Add to Home Screen" always creates a plain bookmark — the app opens in Safari with a URL bar instead of running standalone. Add them to your app's <code>index.html</code> <code>&lt;head&gt;</code>.</p>
+        <pre>&lt;!-- iOS PWA — required for standalone installation --&gt;
+&lt;meta name="apple-mobile-web-app-capable" content="yes" /&gt;
+&lt;meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /&gt;
+&lt;meta name="apple-mobile-web-app-title" content="Your App Name" /&gt;
+&lt;link rel="apple-touch-icon" href="https://YOUR_PUSH_SERVICE/pwa/icon/PROJECT_ID/192.png" /&gt;
+&lt;meta name="theme-color" content="#000000" /&gt;
+
+&lt;!-- Notes:
+  apple-mobile-web-app-capable  → the key tag — enables standalone mode on iOS
+  apple-mobile-web-app-status-bar-style → hides Safari UI when launched from home screen
+    values: "default" (white bar), "black", "black-translucent" (overlaps content)
+  apple-touch-icon → home screen icon; iOS ignores manifest icons entirely
+  theme-color      → status bar tint colour on iOS and Android
+--&gt;</pre>
+        <p style="font-size:.78rem;color:var(--muted);margin-top:.6rem">Push notifications on iOS additionally require the app to be running in <strong>standalone mode</strong> (iOS 16.4+, Safari only). Chrome on iOS creates a bookmark, not a PWA — tell iOS Chrome users to open the install page in Safari instead.</p>
+      </div>
     </div>
 
     <!-- API Documentation -->
@@ -708,6 +728,7 @@ async function ensurePushSubscription(userId) {
           <li>Add the unauthenticated <code>POST /api/push/resubscribe</code> proxy to your app server (Integration Guide step 5)</li>
           <li>Call <code>ensurePushSubscription(userId)</code> on each page load when the user is logged in (Integration Guide step 5)</li>
           <li>Call <code>POST /notify</code> with <code>targetUserId</code> from your server when events occur</li>
+          <li>Add Apple PWA meta tags to your <code>index.html</code> for iOS standalone installation (Integration Guide step 8)</li>
         </ol>
       </div>
 
@@ -829,6 +850,35 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
       <div class="card" style="margin-bottom:1.25rem">
         <div class="card-header"><span class="card-title">Environment Variables (app server)</span></div>
         <pre id="docs-env-vars">Loading...</pre>
+      </div>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><span class="card-title">Install Page — SEO &amp; Social Sharing</span></div>
+        <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:.5rem">The install page at <code>/install/:slug</code> automatically generates a full SEO and social sharing head based on your project settings. Configure in the <strong>Install Page</strong> tab.</p>
+        <pre>// Meta tags auto-generated on every install page:
+&lt;meta name="description"     content="Your app description" /&gt;
+&lt;meta name="robots"          content="index,follow" /&gt;         // or noindex,nofollow
+&lt;link rel="canonical"        href="https://yourapp.com/install" /&gt;
+
+// Open Graph (Facebook, iMessage, Slack, WhatsApp…)
+&lt;meta property="og:type"        content="website" /&gt;
+&lt;meta property="og:title"       content="Install Your App" /&gt;
+&lt;meta property="og:description" content="Your app description" /&gt;
+&lt;meta property="og:image"       content="https://…/pwa/seo-image/:id" /&gt;
+&lt;meta property="og:image:width"  content="1200" /&gt;
+&lt;meta property="og:image:height" content="630" /&gt;
+&lt;meta property="og:url"         content="https://yourapp.com/install" /&gt;
+
+// Twitter / X
+&lt;meta name="twitter:card"        content="summary_large_image" /&gt;
+&lt;meta name="twitter:title"       content="Install Your App" /&gt;
+&lt;meta name="twitter:description" content="Your app description" /&gt;
+&lt;meta name="twitter:image"       content="https://…/pwa/seo-image/:id" /&gt;
+
+// Social image is served at:
+GET /pwa/seo-image/:projectId   // public — no auth required, cacheable 24h
+// Upload via admin (auto-resized to 1200×630 JPEG):
+POST /admin/projects/:id/seo-image   // x-admin-key header, multipart/form-data field: image</pre>
       </div>
 
       <div class="card">
