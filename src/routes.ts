@@ -152,6 +152,7 @@ router.get("/admin/projects/:id/subscribers", requireAdminKey, async (req, res) 
     id: s.id,
     endpointHint: s.endpoint.slice(-12),   // last 12 chars to identify without exposing full URL
     userAgent: s.userAgent || null,
+    userId: s.userId || null,
     createdAt: s.createdAt,
   })));
 });
