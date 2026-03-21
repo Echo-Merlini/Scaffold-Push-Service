@@ -366,6 +366,10 @@
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       Projects
     </div>
+    <div class="nav-item" onclick="navigate('users')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Users
+    </div>
     <div class="nav-section">Notifications</div>
     <div class="nav-item" onclick="navigate('send')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -428,6 +432,20 @@
         <div class="stat-card"><div class="label">Notifications Sent</div><div class="value" id="stat-sent">—</div></div>
       </div>
       <div id="overview-projects"></div>
+    </div>
+
+    <!-- Users -->
+    <div class="section" id="section-users">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;flex-wrap:wrap">
+        <select id="users-project-filter" style="font-size:.82rem" onchange="loadUsers()">
+          <option value="">All projects</option>
+        </select>
+        <input id="users-search" type="search" placeholder="Filter by User ID or platform…" style="flex:1;min-width:160px;font-size:.82rem" oninput="renderUsersTable()">
+        <span id="users-count" style="font-size:.78rem;color:var(--text-dim);margin-left:auto"></span>
+      </div>
+      <div id="users-table-wrap">
+        <div class="empty">Loading…</div>
+      </div>
     </div>
 
     <!-- Projects -->
@@ -1046,6 +1064,7 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
 
   const pages = {
     overview:  { title: 'Overview',          sub: 'Summary across all projects' },
+    users:     { title: 'Users',              sub: 'All subscribers across projects' },
     projects:  { title: 'Projects',           sub: 'Manage your connected apps' },
     send:      { title: 'Send Message',       sub: 'Broadcast a push notification' },
     history:   { title: 'History',            sub: 'Past notifications sent' },
@@ -1101,6 +1120,7 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
     document.getElementById('page-title').textContent = pages[page].title;
     document.getElementById('page-sub').textContent = pages[page].sub;
 
+    if (page === 'users') loadUsers();
     if (page === 'integrate') renderIntegrationGuide();
     if (page === 'docs') renderDocs();
     if (page === 'widgets') renderWidgets();
@@ -1198,6 +1218,91 @@ app.post("/api/push/subscribe", requireAuth, async (req, res) => {
     if (/Chrome/.test(ua)) return 'Chrome';
     if (/Safari/.test(ua)) return 'Safari';
     return 'Browser';
+  }
+
+  // ── Users tab ─────────────────────────────────────────────────
+
+  var _allUsers = []; // cached [{...sub, projectName, projectId}]
+
+  async function loadUsers() {
+    // Populate project filter if needed
+    var sel = document.getElementById('users-project-filter');
+    if (sel.options.length === 1) {
+      projects.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id; opt.textContent = p.name;
+        sel.appendChild(opt);
+      });
+    }
+
+    document.getElementById('users-table-wrap').innerHTML = '<div class="empty">Loading…</div>';
+
+    var filterProjectId = sel.value;
+    var targets = filterProjectId ? projects.filter(function(p){return p.id===filterProjectId;}) : projects;
+
+    var results = await Promise.all(targets.map(function(p) {
+      return fetch(BASE + '/admin/projects/' + p.id + '/subscribers', { headers: { 'x-admin-key': ADMIN_KEY } })
+        .then(function(r){ return r.json(); })
+        .then(function(subs){ return subs.map(function(s){ return Object.assign({}, s, { projectName: p.name, projectId: p.id }); }); })
+        .catch(function(){ return []; });
+    }));
+
+    _allUsers = results.flat().sort(function(a,b){ return new Date(b.createdAt||0) - new Date(a.createdAt||0); });
+    renderUsersTable();
+  }
+
+  function renderUsersTable() {
+    var query = (document.getElementById('users-search').value || '').toLowerCase();
+    var rows = _allUsers.filter(function(s) {
+      if (!query) return true;
+      return (s.userId||'').toLowerCase().includes(query)
+        || detectPlatform(s.userAgent).toLowerCase().includes(query)
+        || parseUA(s.userAgent).toLowerCase().includes(query)
+        || (s.projectName||'').toLowerCase().includes(query);
+    });
+
+    document.getElementById('users-count').textContent = rows.length + ' subscriber' + (rows.length!==1?'s':'');
+
+    if (!rows.length) {
+      document.getElementById('users-table-wrap').innerHTML = '<div class="empty">' + (_allUsers.length ? 'No matches.' : 'No subscribers yet.') + '</div>';
+      return;
+    }
+
+    document.getElementById('users-table-wrap').innerHTML =
+      '<div style="overflow-x:auto"><table class="table"><thead><tr>' +
+      '<th>Platform</th><th>Browser</th><th>User ID</th><th>Project</th><th>Subscribed</th><th>Endpoint</th><th></th>' +
+      '</tr></thead><tbody>' +
+      rows.map(function(s) {
+        var platform = detectPlatform(s.userAgent);
+        var color = PLATFORM_COLORS[platform] || '#6b7280';
+        var platformBadge = '<span style="display:inline-flex;align-items:center;padding:.15rem .5rem;border-radius:20px;font-size:.7rem;font-weight:600;background:'+color+'22;color:'+color+'">'+platform+'</span>';
+        var browser = parseUA(s.userAgent);
+        var date = s.createdAt ? new Date(s.createdAt).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '—';
+        var userIdCell = s.userId
+          ? '<code style="background:#065f4622;color:#34d399;padding:.15rem .4rem;border-radius:5px;font-size:.8rem">'+s.userId+'</code>'
+          : '<span style="color:var(--muted);font-size:.75rem">—</span>';
+        var projectBadge = '<span style="font-size:.75rem;color:var(--text-dim)">'+s.projectName+'</span>';
+        var endpoint = '<code style="font-size:.72rem;color:var(--muted)">…'+s.endpointHint+'</code>';
+        return '<tr>' +
+          '<td>'+platformBadge+'</td>' +
+          '<td style="color:var(--text);font-size:.82rem">'+browser+'</td>' +
+          '<td>'+userIdCell+'</td>' +
+          '<td>'+projectBadge+'</td>' +
+          '<td style="color:var(--text-dim);font-size:.8rem;white-space:nowrap">'+date+'</td>' +
+          '<td>'+endpoint+'</td>' +
+          '<td><button class="btn btn-danger" style="padding:.2rem .5rem;font-size:.7rem" onclick="removeUserRow(\''+s.id+'\',\''+s.projectId+'\')">Remove</button></td>' +
+          '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  async function removeUserRow(subId, projectId) {
+    if (!confirm('Remove this subscriber?')) return;
+    await fetch(BASE + '/admin/subscribers/' + subId, { method: 'DELETE', headers: { 'x-admin-key': ADMIN_KEY } });
+    toast('Subscriber removed');
+    _allUsers = _allUsers.filter(function(s){ return s.id !== subId; });
+    renderUsersTable();
+    renderOverview();
   }
 
   async function removeSubscriber(subId, projectId) {
