@@ -278,13 +278,18 @@ router.get("/widgets.js", async (req, res) => {
 
   /* ── Bell Widget ── */
   function mountBell(color){color=color||THEME;
-    // navigator.vendor is "Apple Computer, Inc." on all Safari versions (stable across iOS versions)
-    // maxTouchPoints>0 distinguishes iPhone/iPad from Mac (Macs always return 0)
+    // navigator.vendor is "Apple Computer, Inc." on all Safari versions
+    // maxTouchPoints>0 distinguishes iPhone/iPad from Mac
     var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
-    var isStandalone=!!(window.navigator.standalone)||window.matchMedia('(display-mode:standalone)').matches;
     var pushSupported='serviceWorker' in navigator&&'PushManager' in window;
 
-    // Show on Apple touch devices (to guide install) or any browser with push support
+    // On iOS, the Notification API is ONLY defined when the app is running as an installed
+    // standalone PWA (home screen). In regular Safari it is undefined, regardless of iOS version.
+    // This is the most reliable functional check — display-mode media queries are unreliable
+    // because WKWebView sometimes reports the wrong display-mode even in standalone.
+    var notifAvailable='Notification' in window;
+
+    // Show bell only if: push is supported, OR it's an Apple mobile device (to guide install)
     if(!pushSupported&&!isAppleMobile)return;
 
     var wrap=mkEl('div',null,{position:'fixed',bottom:CFG.installBanner?'88px':'24px',right:'24px',zIndex:'999999',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'8px',fontFamily:'system-ui,-apple-system,sans-serif'});
@@ -306,17 +311,14 @@ router.get("/widgets.js", async (req, res) => {
     btn.onmouseenter=function(){btn.style.transform='scale(1.1)';};
     btn.onmouseleave=function(){btn.style.transform='scale(1)';};
 
-    // Apple mobile NOT running as installed PWA — push requires standalone mode on iOS.
-    // Use navigator.standalone (Safari-only, most reliable) plus display-mode media queries
-    // as fallbacks. Also check display-mode:minimal-ui which some iOS versions use.
-    var isStandaloneRobust=isStandalone
-      ||window.matchMedia('(display-mode:minimal-ui)').matches
-      ||window.matchMedia('(display-mode:fullscreen)').matches;
-    if(isAppleMobile && !isStandaloneRobust){
+    // iOS without Notification API = not in standalone mode (or iOS < 16.4).
+    // Show install guide. notifAvailable is the authoritative functional check —
+    // it's true only when running as an installed home-screen app on iOS 16.4+.
+    if(isAppleMobile && !notifAvailable){
       btn.onclick=function(){panel.style.display=panel.style.display==='none'?'flex':'none';};
       panel.style.flexDirection='column';
       panelBody.innerHTML=
-        '<p style="color:#aaa;font-size:12px;margin-bottom:10px;line-height:1.5">To receive push notifications on iOS, install this app to your Home Screen first.</p>'+
+        '<p style="color:#aaa;font-size:12px;margin-bottom:10px;line-height:1.5">To receive push notifications on iOS, open this app from your Home Screen.</p>'+
         '<ol style="color:#888;font-size:11px;line-height:1.8;padding-left:1.1rem;margin-bottom:10px">'+
         '<li>Tap the <strong style="color:#aaa">Share</strong> button (&#x2B06; box with arrow) in Safari</li>'+
         '<li>Tap <strong style="color:#aaa">Add to Home Screen</strong></li>'+
@@ -398,10 +400,15 @@ router.get("/widgets.js", async (req, res) => {
   /* ── Install Prompt ── */
   function mountInstall(color){color=color||THEME;
     if(localStorage.getItem(DISMISSED_INSTALL))return;
-    var isStandalone=!!(window.navigator.standalone)
-      ||window.matchMedia('(display-mode:standalone)').matches
-      ||window.matchMedia('(display-mode:minimal-ui)').matches
-      ||window.matchMedia('(display-mode:fullscreen)').matches;
+    // On iOS: Notification in window is only true when running as installed standalone PWA.
+    // On other platforms: use display-mode media queries.
+    var isAppleMobile=(/apple/i.test(navigator.vendor))&&navigator.maxTouchPoints>0;
+    var isStandalone=isAppleMobile
+      ?('Notification' in window)
+      :(!!(window.navigator.standalone)
+        ||window.matchMedia('(display-mode:standalone)').matches
+        ||window.matchMedia('(display-mode:minimal-ui)').matches
+        ||window.matchMedia('(display-mode:fullscreen)').matches);
     if(isStandalone)return;
 
     var card=mkEl('div',null,{display:'none',position:'fixed',bottom:'88px',right:'24px',zIndex:'999998',width:'280px',background:'#111',border:'1px solid #333',borderRadius:'16px',boxShadow:'0 8px 32px rgba(0,0,0,.5)',padding:'16px',fontFamily:'system-ui,-apple-system,sans-serif',color:'#e5e5e5',fontSize:'13px'});
