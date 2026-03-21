@@ -137,6 +137,12 @@ export async function upsertSubscription(data: {
   return created;
 }
 
+export async function getSubscriptionByEndpoint(endpoint: string) {
+  return db.query.subscriptions.findFirst({
+    where: eq(subscriptions.endpoint, endpoint),
+  });
+}
+
 export async function removeSubscription(endpoint: string) {
   await db.delete(subscriptions).where(eq(subscriptions.endpoint, endpoint));
 }

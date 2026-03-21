@@ -6,7 +6,7 @@ import {
   createProject, listProjects, deleteProject, updateProjectLogo,
   getProjectByApiKey, getProjectById, getProjectBySlug, updateProjectPwa, updateProjectWidgets,
   addScreenshot, deleteScreenshot, getScreenshotsForProject, getScreenshotById,
-  upsertSubscription, removeSubscription, removeSubscriptionById, getSubscriptionsForProject, getSubscriptionsByUserId,
+  upsertSubscription, removeSubscription, removeSubscriptionById, getSubscriptionsForProject, getSubscriptionsByUserId, getSubscriptionByEndpoint,
   logNotification, getNotificationHistory,
   createScheduledNotification, getScheduledNotificationsForProject, cancelScheduledNotification,
 } from "./storage.js";
@@ -1177,6 +1177,32 @@ router.post("/subscribe", requireApiKey, async (req, res) => {
 router.post("/unsubscribe", requireApiKey, async (req, res) => {
   const { endpoint } = z.object({ endpoint: z.string().url() }).parse(req.body);
   await removeSubscription(endpoint);
+  res.json({ ok: true });
+});
+
+// Called by the SW pushsubscriptionchange event — swaps old endpoint for new one, preserving userId.
+router.post("/resubscribe", requireApiKey, async (req, res) => {
+  const { endpoint, keys, oldEndpoint } = z.object({
+    endpoint: z.string().url(),
+    keys: z.object({ p256dh: z.string(), auth: z.string() }),
+    oldEndpoint: z.string().url().optional(),
+  }).parse(req.body);
+
+  const project = (req as any).project;
+  const old = oldEndpoint ? await getSubscriptionByEndpoint(oldEndpoint) : null;
+  const userId = old?.userId ?? undefined;
+
+  await upsertSubscription({
+    projectId: project.id,
+    endpoint,
+    p256dh: keys.p256dh,
+    auth: keys.auth,
+    userAgent: req.headers["user-agent"],
+    userId,
+  });
+
+  if (old) await removeSubscription(old.endpoint);
+
   res.json({ ok: true });
 });
 
