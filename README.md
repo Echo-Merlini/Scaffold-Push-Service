@@ -648,6 +648,19 @@ The admin dashboard intentionally has no frontend build step — it is a single 
 
 ---
 
+## Donate
+
+If this project has been useful to you and you'd like to support its development:
+
+| Network | Address |
+|---|---|
+| Bitcoin (BTC) | `3GzpE8PyW8XgNnmkxsNLpj2jVKvyxwRYFM` |
+| Ethereum (ETH) | `0x27958d7791140ab141363330a6BD1B76622a09D7` |
+
+Thank you — it genuinely helps keep the project going. 🙏
+
+---
+
 ## License
 
 MIT
