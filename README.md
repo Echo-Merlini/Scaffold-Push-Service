@@ -6,6 +6,59 @@ A self-hosted web push notification service with integrated PWA hosting. Connect
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>Login</b></td>
+    <td align="center"><b>Home — New PWA</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/login.png" /></td>
+    <td><img src="docs/screenshots/home-new-pwa.png" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Overview</b></td>
+    <td align="center"><b>Projects</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/overview.png" /></td>
+    <td><img src="docs/screenshots/projects.png" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Send &amp; Schedule Notifications</b></td>
+    <td align="center"><b>Notification History</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/notifications.png" /></td>
+    <td><img src="docs/screenshots/history.png" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>User / Subscriber Data</b></td>
+    <td align="center"><b>UI Components &amp; Widgets</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/users.png" /></td>
+    <td><img src="docs/screenshots/ui-components.png" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>PWA Setup</b></td>
+    <td align="center"><b>Installation Page Config</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/pwa-setup.png" /></td>
+    <td><img src="docs/screenshots/installation-page.png" /></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>Live Installation Page</b></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/screenshots/installation-page-live.png" width="60%" /></td>
+  </tr>
+</table>
+
+---
+
 ## Features
 
 - **Web Push Notifications** — send to all subscribers or target a specific user by ID
