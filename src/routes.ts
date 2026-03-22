@@ -1,8 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { requireApiKey, requireAdminKey } from "./middleware/auth.js";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { requireApiKey, requireAdminKey, JWT_SECRET } from "./middleware/auth.js";
 import {
+  createUser, getUserByEmail, getUserById, countUsers,
   createProject, listProjects, deleteProject, updateProjectLogo,
   getProjectByApiKey, getProjectById, getProjectBySlug, updateProjectPwa, updateProjectWidgets,
   addScreenshot, deleteScreenshot, getScreenshotsForProject, getScreenshotById,
@@ -21,6 +24,63 @@ export const router = Router();
 
 router.get("/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+router.post("/auth/register", async (req, res) => {
+  try {
+    const { email, password, name } = z.object({
+      email: z.string().email(),
+      password: z.string().min(8),
+      name: z.string().optional(),
+    }).parse(req.body);
+
+    const existing = await getUserByEmail(email);
+    if (existing) { res.status(409).json({ error: "Email already registered" }); return; }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await createUser(email, passwordHash, name);
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "30d" });
+    res.status(201).json({ token, user: { id: user.id, email: user.email, name: user.name } });
+  } catch (err: any) {
+    if (err?.name === "ZodError") { res.status(400).json({ error: err.issues[0]?.message }); return; }
+    res.status(500).json({ error: "Registration failed" });
+  }
+});
+
+router.post("/auth/login", async (req, res) => {
+  try {
+    const { email, password } = z.object({
+      email: z.string().email(),
+      password: z.string().min(1),
+    }).parse(req.body);
+
+    const user = await getUserByEmail(email);
+    if (!user) { res.status(401).json({ error: "Invalid email or password" }); return; }
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) { res.status(401).json({ error: "Invalid email or password" }); return; }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: "30d" });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+  } catch (err: any) {
+    if (err?.name === "ZodError") { res.status(400).json({ error: err.issues[0]?.message }); return; }
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+router.get("/auth/me", requireAdminKey, async (req: any, res) => {
+  if (!req.user?.id) { res.json({ ok: true }); return; }
+  const user = await getUserById(req.user.id);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  res.json({ id: user.id, email: user.email, name: user.name });
+});
+
+// Returns whether any users exist — used by frontend to show Register vs Login
+router.get("/auth/status", async (_req, res) => {
+  const count = await countUsers();
+  res.json({ hasUsers: count > 0 });
 });
 
 // ── VAPID public key (clients need this to subscribe) ─────────────────────────

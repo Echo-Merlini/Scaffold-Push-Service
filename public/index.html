@@ -134,14 +134,99 @@
     .auth-box {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 2rem;
+      border-radius: 12px;
+      padding: 2.25rem 2rem;
       width: 100%;
-      max-width: 380px;
+      max-width: 400px;
     }
 
-    .auth-box h2 { font-size: 1rem; font-weight: 600; margin-bottom: .35rem; }
-    .auth-box p { font-size: .8rem; color: var(--text-dim); margin-bottom: 1.25rem; }
+    .auth-box h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: .3rem; }
+    .auth-box p { font-size: .8rem; color: var(--text-dim); margin-bottom: 1.5rem; }
+
+    .auth-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .auth-tab { flex: 1; padding: .5rem; font-size: .8rem; font-weight: 500; cursor: pointer; background: transparent; border: none; color: var(--text-dim); transition: background .15s, color .15s; }
+    .auth-tab.active { background: #1e1e1e; color: var(--text); }
+    .auth-error { color: var(--red); font-size: .78rem; margin-top: .5rem; min-height: 1rem; }
+
+    /* ── Home page ── */
+    .home-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+    .project-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+      transition: border-color .15s;
+      cursor: pointer;
+    }
+    .project-card:hover { border-color: #444; }
+    .project-card-top { display: flex; align-items: center; gap: .75rem; }
+    .project-card-icon { width: 40px; height: 40px; border-radius: 8px; background: #1e1e1e; border: 1px solid var(--border); flex-shrink: 0; object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; overflow: hidden; }
+    .project-card-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .project-card-name { font-size: .9rem; font-weight: 600; }
+    .project-card-url { font-size: .72rem; color: var(--muted); margin-top: .1rem; }
+    .project-card-stats { display: flex; gap: 1rem; font-size: .75rem; color: var(--text-dim); }
+    .project-card-stat span { font-weight: 600; color: var(--text); }
+    .new-pwa-card {
+      background: transparent;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      cursor: pointer;
+      min-height: 110px;
+      color: var(--muted);
+      font-size: .82rem;
+      transition: border-color .15s, color .15s;
+    }
+    .new-pwa-card:hover { border-color: #555; color: var(--text-dim); }
+    .new-pwa-card-plus { font-size: 1.5rem; line-height: 1; }
+
+    /* ── New PWA Modal ── */
+    #new-pwa-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    #new-pwa-modal.open { display: flex; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+    }
+    .modal-box h3 { font-size: 1rem; font-weight: 700; margin-bottom: .3rem; }
+    .modal-box p { font-size: .8rem; color: var(--text-dim); margin-bottom: 1.5rem; }
+    .method-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin-bottom: 1.25rem; }
+    .method-btn {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .6rem .5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .35rem;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text-dim);
+      font-size: .73rem;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .method-btn:hover { background: #1a1a1a; color: var(--text); }
+    .method-btn.selected { border-color: #555; background: #1e1e1e; color: var(--text); }
+    .method-icon { font-size: 1.25rem; line-height: 1; }
 
     /* ── Cards ── */
     .card {
@@ -341,11 +426,83 @@
 <div id="auth-overlay">
   <div class="auth-box">
     <h2>Push Service</h2>
-    <p>Enter your admin key to continue.</p>
-    <div class="form-row">
-      <input type="password" id="admin-key-input" placeholder="Admin key" />
+    <p id="auth-subtitle">Sign in to your account</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">Sign in</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')">Create account</button>
     </div>
-    <button class="btn" style="width:100%" onclick="login()">Sign in</button>
+
+    <!-- Login form -->
+    <div id="auth-login-form">
+      <div class="form-row">
+        <input type="email" id="login-email" placeholder="Email" style="width:100%" autocomplete="email" />
+      </div>
+      <div class="form-row" style="margin-top:.6rem">
+        <input type="password" id="login-password" placeholder="Password" style="width:100%" autocomplete="current-password" />
+      </div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="btn" style="width:100%;margin-top:.75rem" onclick="doLogin()">Sign in</button>
+    </div>
+
+    <!-- Register form -->
+    <div id="auth-register-form" style="display:none">
+      <div class="form-row">
+        <input type="text" id="reg-name" placeholder="Name (optional)" style="width:100%" autocomplete="name" />
+      </div>
+      <div class="form-row" style="margin-top:.6rem">
+        <input type="email" id="reg-email" placeholder="Email" style="width:100%" autocomplete="email" />
+      </div>
+      <div class="form-row" style="margin-top:.6rem">
+        <input type="password" id="reg-password" placeholder="Password (min 8 chars)" style="width:100%" autocomplete="new-password" />
+      </div>
+      <div class="auth-error" id="reg-error"></div>
+      <button class="btn" style="width:100%;margin-top:.75rem" onclick="doRegister()">Create account</button>
+    </div>
+  </div>
+</div>
+
+<!-- New PWA Modal -->
+<div id="new-pwa-modal">
+  <div class="modal-box">
+    <h3>New PWA</h3>
+    <p>Choose your integration method, then give your app a name.</p>
+
+    <div class="label" style="margin-bottom:.5rem">Integration Method</div>
+    <div class="method-grid" id="method-grid">
+      <button class="method-btn selected" data-method="vanilla" onclick="selectMethod(this)">
+        <span class="method-icon">⚡</span>Vanilla JS
+      </button>
+      <button class="method-btn" data-method="react" onclick="selectMethod(this)">
+        <span class="method-icon">⚛️</span>React / Next.js
+      </button>
+      <button class="method-btn" data-method="vue" onclick="selectMethod(this)">
+        <span class="method-icon">💚</span>Vue / Nuxt
+      </button>
+      <button class="method-btn" data-method="wordpress" onclick="selectMethod(this)">
+        <span class="method-icon">🌐</span>WordPress
+      </button>
+      <button class="method-btn" data-method="svelte" onclick="selectMethod(this)">
+        <span class="method-icon">🔥</span>Svelte
+      </button>
+      <button class="method-btn" data-method="other" onclick="selectMethod(this)">
+        <span class="method-icon">📦</span>Other
+      </button>
+    </div>
+
+    <div style="margin-bottom:.85rem">
+      <div class="label">App Name</div>
+      <input type="text" id="new-pwa-name" placeholder="My Awesome App" style="width:100%" />
+    </div>
+    <div style="margin-bottom:1.25rem">
+      <div class="label">Start URL <span style="color:var(--muted);font-weight:400">(your production domain)</span></div>
+      <input type="text" id="new-pwa-url" placeholder="https://myapp.com" style="width:100%" />
+    </div>
+
+    <div style="display:flex;gap:.6rem">
+      <button class="btn" style="flex:1" onclick="createNewPwa()">Create PWA</button>
+      <button class="btn btn-ghost" onclick="closeNewPwaModal()">Cancel</button>
+    </div>
+    <div id="new-pwa-error" style="color:var(--red);font-size:.78rem;margin-top:.5rem"></div>
   </div>
 </div>
 
@@ -358,7 +515,11 @@
 
   <nav>
     <div class="nav-section">Manage</div>
-    <div class="nav-item active" onclick="navigate('overview')">
+    <div class="nav-item active" onclick="navigate('home')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </div>
+    <div class="nav-item" onclick="navigate('overview')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       Overview
     </div>
@@ -423,6 +584,20 @@
   </div>
 
   <div id="content">
+
+    <!-- Home -->
+    <div class="section active" id="section-home">
+      <div class="home-header">
+        <div>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:.2rem">YOUR PWAS</div>
+          <div style="font-size:1.1rem;font-weight:600" id="home-greeting">Projects</div>
+        </div>
+        <button class="btn" onclick="openNewPwaModal()">+ New PWA</button>
+      </div>
+      <div class="project-grid" id="home-project-grid">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
 
     <!-- Overview -->
     <div class="section active" id="section-overview">
@@ -1185,16 +1360,18 @@ POST /admin/projects/:id/seo-image   // x-admin-key header, multipart/form-data 
 
 <script>
   const BASE = window.location.origin;
-  let ADMIN_KEY = localStorage.getItem('push_admin_key') || '';
+  let ADMIN_KEY = localStorage.getItem('push_auth_token') || '';
+  let currentUser = null;
   let projects = [];
 
   const pages = {
-    overview:  { title: 'Overview',          sub: 'Summary across all projects' },
+    home:      { title: 'Home',               sub: 'Your PWA projects' },
+    overview:  { title: 'Overview',           sub: 'Summary across all projects' },
     users:     { title: 'Users',              sub: 'All subscribers across projects' },
     projects:  { title: 'Projects',           sub: 'Manage your connected apps' },
     send:      { title: 'Send Message',       sub: 'Broadcast a push notification' },
     history:   { title: 'History',            sub: 'Past notifications sent' },
-    scheduled: { title: 'Scheduled', sub: 'Pending scheduled notifications' },
+    scheduled: { title: 'Scheduled',          sub: 'Pending scheduled notifications' },
     integrate: { title: 'Integration Guide',  sub: 'Connect your apps to this service' },
     docs:      { title: 'API Docs',           sub: 'Full API reference and environment setup' },
     widgets:   { title: 'UI Components',      sub: 'Drop-in widgets for your site' },
@@ -1203,36 +1380,172 @@ POST /admin/projects/:id/seo-image   // x-admin-key header, multipart/form-data 
     settings:  { title: 'Settings',           sub: 'VAPID keys and service info' },
   };
 
-  if (ADMIN_KEY) attemptLogin();
+  // Check auth status on load — show Register tab if no users exist yet
+  (async function initAuth() {
+    const s = await fetch(`${BASE}/auth/status`).then(r => r.json()).catch(() => ({ hasUsers: true }));
+    if (!s.hasUsers) switchAuthTab('register');
+    if (ADMIN_KEY) await attemptAutoLogin();
+  })();
 
-  async function login() {
-    ADMIN_KEY = document.getElementById('admin-key-input').value.trim();
-    await attemptLogin();
+  function switchAuthTab(tab) {
+    document.getElementById('auth-login-form').style.display    = tab === 'login'    ? 'block' : 'none';
+    document.getElementById('auth-register-form').style.display = tab === 'register' ? 'block' : 'none';
+    document.querySelectorAll('.auth-tab').forEach(function(t, i) {
+      t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+    });
+    document.getElementById('auth-subtitle').textContent = tab === 'login' ? 'Sign in to your account' : 'Create your account';
   }
 
-  async function attemptLogin() {
-    const res = await fetch(`${BASE}/admin/projects`, {
-      headers: { 'x-admin-key': ADMIN_KEY }
+  async function doLogin() {
+    var email    = document.getElementById('login-email').value.trim();
+    var password = document.getElementById('login-password').value;
+    var errEl    = document.getElementById('login-error');
+    errEl.textContent = '';
+    var res = await fetch(`${BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) { toast('Invalid admin key'); return; }
+    var data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Login failed'; return; }
+    onAuthSuccess(data.token, data.user);
+  }
 
-    localStorage.setItem('push_admin_key', ADMIN_KEY);
-    document.getElementById('auth-overlay').style.display = 'none';
-    document.getElementById('auth-status').textContent = 'Authenticated';
+  async function doRegister() {
+    var name     = document.getElementById('reg-name').value.trim();
+    var email    = document.getElementById('reg-email').value.trim();
+    var password = document.getElementById('reg-password').value;
+    var errEl    = document.getElementById('reg-error');
+    errEl.textContent = '';
+    var res = await fetch(`${BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, ...(name ? { name } : {}) }),
+    });
+    var data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Registration failed'; return; }
+    onAuthSuccess(data.token, data.user);
+  }
 
+  async function attemptAutoLogin() {
+    var res = await fetch(`${BASE}/admin/projects`, { headers: { 'x-admin-key': ADMIN_KEY } });
+    if (!res.ok) { ADMIN_KEY = ''; localStorage.removeItem('push_auth_token'); return; }
     projects = await res.json();
+    var me = await fetch(`${BASE}/auth/me`, { headers: { 'x-admin-key': ADMIN_KEY } }).then(r => r.ok ? r.json() : null).catch(() => null);
+    currentUser = me;
+    onLoggedIn();
+  }
+
+  function onAuthSuccess(token, user) {
+    ADMIN_KEY = token;
+    currentUser = user;
+    localStorage.setItem('push_auth_token', token);
+    onLoggedIn();
+  }
+
+  async function onLoggedIn() {
+    document.getElementById('auth-overlay').style.display = 'none';
+    var greeting = currentUser ? (currentUser.name || currentUser.email) : 'Projects';
+    document.getElementById('home-greeting').textContent = greeting ? 'Welcome, ' + greeting.split(' ')[0] + '!' : 'Your Projects';
+    document.getElementById('auth-status').textContent = currentUser?.email || 'Authenticated';
     await refreshAll();
+    navigate('home');
   }
 
   async function refreshAll() {
     const res = await fetch(`${BASE}/admin/projects`, { headers: { 'x-admin-key': ADMIN_KEY } });
     projects = await res.json();
+    renderHome();
     renderOverview();
     renderProjects();
     populateProjectSelects();
     renderWidgets();
     renderPwaSetup();
   }
+
+  // ── Home ─────────────────────────────────────────────────────
+
+  async function renderHome() {
+    var grid = document.getElementById('home-project-grid');
+    if (!projects.length) {
+      grid.innerHTML = '<div class="new-pwa-card" onclick="openNewPwaModal()" style="grid-column:1/-1"><div class="new-pwa-card-plus">+</div><div>Create your first PWA</div></div>';
+      return;
+    }
+    var counts = await Promise.all(projects.map(function(p) {
+      return fetch(BASE + '/subscribers', { headers: { 'x-api-key': p.apiKey } })
+        .then(function(r){ return r.ok ? r.json() : []; })
+        .then(function(s){ return s.length; })
+        .catch(function(){ return 0; });
+    }));
+    grid.innerHTML = projects.map(function(p, i) {
+      var icon = p.logo ? '<img src="' + BASE + '/pwa/icon/' + p.id + '/192.png" />' : '📦';
+      var url  = p.pwaUrl ? p.pwaUrl.replace(/^https?:\/\//, '') : '';
+      return '<div class="project-card" onclick="navigate(\'projects\')">' +
+        '<div class="project-card-top">' +
+          '<div class="project-card-icon">' + icon + '</div>' +
+          '<div><div class="project-card-name">' + p.name + '</div>' +
+          (url ? '<div class="project-card-url">' + url + '</div>' : '') + '</div>' +
+        '</div>' +
+        '<div class="project-card-stats">Subscribers <span>' + counts[i] + '</span></div>' +
+      '</div>';
+    }).join('') +
+    '<div class="new-pwa-card" onclick="openNewPwaModal()"><div class="new-pwa-card-plus">+</div><div>New PWA</div></div>';
+  }
+
+  var _selectedMethod = 'vanilla';
+
+  function selectMethod(btn) {
+    document.querySelectorAll('.method-btn').forEach(function(b){ b.classList.remove('selected'); });
+    btn.classList.add('selected');
+    _selectedMethod = btn.dataset.method;
+  }
+
+  function openNewPwaModal() {
+    document.getElementById('new-pwa-name').value  = '';
+    document.getElementById('new-pwa-url').value   = '';
+    document.getElementById('new-pwa-error').textContent = '';
+    document.getElementById('new-pwa-modal').classList.add('open');
+    document.getElementById('new-pwa-name').focus();
+  }
+
+  function closeNewPwaModal() {
+    document.getElementById('new-pwa-modal').classList.remove('open');
+  }
+
+  async function createNewPwa() {
+    var name   = document.getElementById('new-pwa-name').value.trim();
+    var url    = document.getElementById('new-pwa-url').value.trim();
+    var errEl  = document.getElementById('new-pwa-error');
+    errEl.textContent = '';
+    if (!name) { errEl.textContent = 'App name is required'; return; }
+
+    var res = await fetch(BASE + '/admin/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) { errEl.textContent = 'Failed to create project'; return; }
+    var project = await res.json();
+
+    // Set start URL if provided
+    if (url) {
+      await fetch(BASE + '/admin/projects/' + project.id + '/pwa', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+        body: JSON.stringify({ pwaUrl: url, pwaName: name }),
+      });
+    }
+
+    closeNewPwaModal();
+    await refreshAll();
+    toast('PWA created — configure it in Projects');
+    navigate('integrate');
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('new-pwa-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeNewPwaModal();
+  });
 
   // ── Navigation ──────────────────────────────────────────────
 
@@ -1893,7 +2206,7 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
   }
 
   function logout() {
-    localStorage.removeItem('push_admin_key');
+    localStorage.removeItem('push_auth_token');
     location.reload();
   }
 
@@ -1914,8 +2227,11 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
-  document.getElementById('admin-key-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') login();
+  document.getElementById('login-password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('reg-password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doRegister();
   });
 
   // ── PWA Setup ─────────────────────────────────────────────────

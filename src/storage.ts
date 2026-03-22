@@ -1,7 +1,27 @@
 import { eq, lte, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "./db.js";
-import { projects, subscriptions, notificationLog, screenshots, scheduledNotifications } from "./schema.js";
+import { projects, subscriptions, notificationLog, screenshots, scheduledNotifications, users } from "./schema.js";
+
+// --- Service Users ---
+
+export async function createUser(email: string, passwordHash: string, name?: string) {
+  const [user] = await db.insert(users).values({ id: nanoid(), email, passwordHash, name }).returning();
+  return user;
+}
+
+export async function getUserByEmail(email: string) {
+  return db.query.users.findFirst({ where: eq(users.email, email) });
+}
+
+export async function getUserById(id: string) {
+  return db.query.users.findFirst({ where: eq(users.id, id) });
+}
+
+export async function countUsers() {
+  const all = await db.query.users.findMany();
+  return all.length;
+}
 
 // --- Projects ---
 

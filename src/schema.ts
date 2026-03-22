@@ -1,4 +1,13 @@
-import { pgTable, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
+
+// Service users — accounts that can log in to the admin panel
+export const users = pgTable("service_users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  name: text("name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // A project = one of your web apps that uses this push service
 export const projects = pgTable("projects", {

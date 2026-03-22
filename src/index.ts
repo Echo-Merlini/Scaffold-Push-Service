@@ -14,6 +14,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Add new columns without breaking existing deployments
 async function runMigrations() {
   await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS service_users (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      name TEXT,
+      created_at TIMESTAMP DEFAULT NOW() NOT NULL
+    )
+  `);
+  await db.execute(sql`
     ALTER TABLE projects
       ADD COLUMN IF NOT EXISTS logo_ico TEXT,
       ADD COLUMN IF NOT EXISTS logo_svg TEXT
