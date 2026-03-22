@@ -23,18 +23,50 @@ A self-hosted web push notification service with integrated PWA hosting. Connect
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Runtime | Node.js ≥ 20 |
-| Framework | Express 4 |
-| Language | TypeScript |
-| Database | PostgreSQL (tested with Neon serverless) |
-| ORM | Drizzle ORM |
-| Push | web-push (VAPID) |
-| Image processing | Sharp |
-| Auth | bcryptjs + jsonwebtoken |
-| Build | esbuild |
-| Dev | tsx |
+### Runtime & Language
+| Package | Version | Purpose |
+|---|---|---|
+| Node.js | ≥ 20 | Runtime |
+| TypeScript | 5.6 | Language |
+
+### Server
+| Package | Version | Purpose |
+|---|---|---|
+| express | ^4.21 | HTTP server and routing |
+| multer | ^2.1 | Multipart file upload handling |
+| dotenv | ^16.6 | Environment variable loading |
+
+### Database
+| Package | Version | Purpose |
+|---|---|---|
+| @neondatabase/serverless | ^0.10 | Neon PostgreSQL HTTP driver |
+| drizzle-orm | ^0.39 | Type-safe ORM and query builder |
+| drizzle-zod | ^0.7 | Zod schema generation from Drizzle tables |
+| zod | ^3.24 | Runtime schema validation |
+| nanoid | ^5.1 | Compact URL-safe unique ID generation |
+
+### Push Notifications
+| Package | Version | Purpose |
+|---|---|---|
+| web-push | ^3.6 | Web Push Protocol — VAPID signing and delivery |
+
+### Authentication
+| Package | Version | Purpose |
+|---|---|---|
+| bcryptjs | ^3.0 | Password hashing (10 rounds) |
+| jsonwebtoken | ^9.0 | JWT signing and verification (30-day tokens) |
+
+### Image Processing
+| Package | Version | Purpose |
+|---|---|---|
+| sharp | ^0.34 | Logo resizing (192/512/96px + .ico), screenshot resize, OG image generation |
+
+### Build & Dev
+| Package | Version | Purpose |
+|---|---|---|
+| esbuild | ^0.25 | Production bundler (ESM output) |
+| tsx | ^4.19 | TypeScript execution for dev and scripts |
+| drizzle-kit | ^0.30 | Schema introspection and migration tooling |
 
 ---
 
