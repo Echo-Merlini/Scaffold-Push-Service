@@ -1066,6 +1066,11 @@ POST /admin/projects/:id/seo-image   // x-admin-key header, multipart/form-data 
         </div>
 
         <div style="margin-bottom:1rem">
+          <div class="label">Title <span style="color:var(--muted);font-weight:400">(shown as the app name on the install page)</span></div>
+          <input type="text" id="install-title" placeholder="My App" style="width:100%" />
+        </div>
+
+        <div style="margin-bottom:1rem">
           <div class="label">Description / Meta Description <span style="color:var(--muted);font-weight:400">(shown on the page + used as SEO meta description)</span></div>
           <textarea id="install-description" rows="3" placeholder="A short description of your app…" style="width:100%;resize:vertical"></textarea>
         </div>
@@ -2037,6 +2042,7 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
     document.getElementById('install-url-card').style.display = 'block';
 
     document.getElementById('install-slug').value        = p.installSlug    || '';
+    document.getElementById('install-title').value       = p.pwaName        || '';
     document.getElementById('install-description').value = p.pwaDescription || '';
     var ytRaw = p.pwaYoutubeUrl || '';
     var ytMatch = ytRaw.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
@@ -2073,6 +2079,7 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
 
     var slugVal = document.getElementById('install-slug').value.trim().toLowerCase();
     var body = {
+      pwaName:        document.getElementById('install-title').value.trim() || null,
       pwaDescription: document.getElementById('install-description').value.trim() || null,
       pwaYoutubeUrl:  (function(){ var id = document.getElementById('install-youtube-url').value.trim(); return id ? 'https://www.youtube.com/embed/' + id : null; })(),
       installSlug:    slugVal || null,
