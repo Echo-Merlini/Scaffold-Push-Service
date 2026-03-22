@@ -997,9 +997,23 @@ POST /admin/projects/:id/seo-image   // x-admin-key header, multipart/form-data 
               <option value="browser">browser — regular browser tab</option>
             </select>
           </div>
+          <div>
+            <div class="label">Language <span style="color:var(--muted);font-weight:400">(IANA tag, e.g. <code>en</code>, <code>pt</code>)</span></div>
+            <input type="text" id="pwa-lang" placeholder="en" style="width:100%" maxlength="10" />
+          </div>
         </div>
 
-        <div style="margin-top:1.25rem;display:flex;gap:.5rem;align-items:center">
+        <div style="margin-bottom:1rem;margin-top:1rem">
+          <div class="label">Description <span style="color:var(--muted);font-weight:400">(shown on install page + manifest)</span></div>
+          <textarea id="pwa-description" rows="3" placeholder="A short description of your app…" style="width:100%;resize:vertical"></textarea>
+        </div>
+
+        <div style="margin-bottom:1rem">
+          <div class="label">Categories <span style="color:var(--muted);font-weight:400">(comma-separated, e.g. <code>productivity, utilities</code>)</span></div>
+          <input type="text" id="pwa-categories" placeholder="productivity, utilities" style="width:100%" />
+          <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem">Used by app stores for classification. <a href="https://github.com/nickvdyck/webbundle/blob/main/src/manifest/categories.ts" target="_blank" style="color:var(--primary)">Valid categories list</a></div>
+        </div>
+
           <button class="btn" onclick="savePwaConfig()">Save Manifest</button>
           <span id="pwa-save-status" style="font-size:.78rem;color:var(--text-dim)"></span>
         </div>
@@ -1924,7 +1938,12 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
     document.getElementById('pwa-theme-color-text').value = tc;
     document.getElementById('pwa-bg-color').value          = bc;
     document.getElementById('pwa-bg-color-text').value     = bc;
-    document.getElementById('pwa-display').value = p.pwaDisplay || 'standalone';
+    document.getElementById('pwa-display').value      = p.pwaDisplay      || 'standalone';
+    document.getElementById('pwa-lang').value         = p.pwaLang         || '';
+    document.getElementById('pwa-description').value  = p.pwaDescription  || '';
+    var cats = '';
+    try { if (p.pwaCategories) cats = JSON.parse(p.pwaCategories).join(', '); } catch {}
+    document.getElementById('pwa-categories').value   = cats;
 
     // Snippet + manifest URL
     var manifestUrl = BASE + '/pwa/manifest.json?key=' + p.apiKey;
@@ -1992,6 +2011,8 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
     var status = document.getElementById('pwa-save-status');
     status.textContent = 'Saving…';
 
+    var catsRaw = document.getElementById('pwa-categories').value.trim();
+    var catsJson = catsRaw ? JSON.stringify(catsRaw.split(',').map(function(s){ return s.trim(); }).filter(Boolean)) : null;
     var body = {
       pwaUrl:         document.getElementById('pwa-url').value.trim() || null,
       pwaName:        document.getElementById('pwa-name').value.trim() || null,
@@ -1999,6 +2020,9 @@ PUSH_SERVICE_API_KEY=your_project_api_key`;
       pwaThemeColor:  document.getElementById('pwa-theme-color-text').value.trim() || null,
       pwaBgColor:     document.getElementById('pwa-bg-color-text').value.trim() || null,
       pwaDisplay:     document.getElementById('pwa-display').value || null,
+      pwaDescription: document.getElementById('pwa-description').value.trim() || null,
+      pwaLang:        document.getElementById('pwa-lang').value.trim() || null,
+      pwaCategories:  catsJson,
     };
 
     var res = await fetch(BASE + '/admin/projects/' + opt.value + '/pwa', {

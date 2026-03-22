@@ -82,6 +82,8 @@ router.patch("/admin/projects/:id/pwa", requireAdminKey, async (req, res) => {
     seoImage: z.string().nullable().optional(),
     seoIndexable: z.enum(["true", "false"]).nullable().optional(),
     storeLinks: z.string().nullable().optional(),
+    pwaLang: z.string().nullable().optional(),
+    pwaCategories: z.string().nullable().optional(),
   });
   try {
     const pwa = schema.parse(req.body);
@@ -733,6 +735,11 @@ router.get("/pwa/manifest.json", async (req, res) => {
     background_color: project.pwaBgColor    || "#ffffff",
     icons,
   };
+  if (project.pwaDescription)                   manifest.description = project.pwaDescription;
+  if ((project as any).pwaLang)                 manifest.lang        = (project as any).pwaLang;
+  if ((project as any).pwaCategories) {
+    try { manifest.categories = JSON.parse((project as any).pwaCategories); } catch {}
+  }
   if (screenshotsArr.length) manifest.screenshots = screenshotsArr;
 
   res.setHeader("Content-Type", "application/manifest+json");

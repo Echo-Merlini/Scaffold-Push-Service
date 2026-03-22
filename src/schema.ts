@@ -23,6 +23,8 @@ export const projects = pgTable("projects", {
   seoImage: text("seo_image"),               // social sharing OG image — data URL or external URL
   seoIndexable: text("seo_indexable").default("true"), // "true" | "false"
   storeLinks: text("store_links").default("{}"), // JSON: {appStore,playStore,chromeStore,windowsStore} each {url,enabled}
+  pwaLang: text("pwa_lang"),                            // IANA language tag e.g. "en", "pt"
+  pwaCategories: text("pwa_categories"),                // JSON array e.g. ["productivity","utilities"]
   widgetsConfig: text("widgets_config").default("{}"), // JSON: { bell, banner, install }
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

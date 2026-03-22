@@ -37,6 +37,8 @@ export async function updateProjectPwa(id: string, pwa: {
   seoImage?: string | null;
   seoIndexable?: string | null;
   storeLinks?: string | null;
+  pwaLang?: string | null;
+  pwaCategories?: string | null;
 }) {
   const [updated] = await db
     .update(projects)

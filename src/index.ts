@@ -54,6 +54,11 @@ async function runMigrations() {
       ADD COLUMN IF NOT EXISTS store_links TEXT DEFAULT '{}'
   `);
   await db.execute(sql`
+    ALTER TABLE projects
+      ADD COLUMN IF NOT EXISTS pwa_lang TEXT,
+      ADD COLUMN IF NOT EXISTS pwa_categories TEXT
+  `);
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS scheduled_notifications (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
