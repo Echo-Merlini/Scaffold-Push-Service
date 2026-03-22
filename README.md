@@ -1,5 +1,7 @@
 # Scaffold Push Service
 
+**Private, self-hosted push notifications + PWA hosting for multiple apps — no config hell, one deployment.**
+
 A self-hosted web push notification service with integrated PWA hosting. Connect multiple web apps to a single push server, serve dynamic Web App Manifests, and give each app a shareable app-store-style installation page — all from one deployment with no config files to manage.
 
 ---
