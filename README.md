@@ -330,6 +330,13 @@ npm run vapid:generate
 
 Copy the output `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` into your environment.
 
+> **Important — keep your VAPID keys safe.**
+> VAPID keys are cryptographically tied to every push subscription your users create.
+> If you lose them and have to generate new ones, all existing subscribers will silently
+> stop receiving notifications — they would need to re-subscribe from scratch.
+> Back them up somewhere secure (a password manager, your hosting platform's secret store, etc.)
+> and never rotate them unless you are prepared to lose all current subscriptions.
+
 ### 2. Add the widget script
 
 The simplest integration — one tag does everything:
